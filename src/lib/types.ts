@@ -70,7 +70,7 @@ export interface Recording {
   };
   transaction?: {
     hash: string;
-    status: "submitted" | "included" | "reverted";
+    status: "unknown" | "submitted" | "rejected" | "included" | "reverted";
     explorer: string;
   };
 }

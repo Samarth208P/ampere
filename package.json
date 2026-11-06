@@ -14,6 +14,7 @@
     "collect": "tsx --env-file-if-exists=.env.local scripts/collect.ts",
     "collect:watch": "tsx --env-file-if-exists=.env.local scripts/collect.ts --watch",
     "ethereum:send": "tsx --env-file-if-exists=.env.local scripts/send-frame.ts",
+    "ethereum:send:faucet": "tsx --env-file-if-exists=.env.local scripts/send-frame.ts --faucet",
     "ethereum:inspect": "tsx --env-file-if-exists=.env.local scripts/inspect-frame.ts",
     "arkiv:seed": "tsx --env-file-if-exists=.env.local scripts/seed-arkiv.ts",
     "arkiv:benchmark": "tsx --env-file-if-exists=.env.local scripts/benchmark-arkiv.ts",

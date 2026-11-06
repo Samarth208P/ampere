@@ -128,7 +128,7 @@ const recording = object(
     ),
     transaction: object({
       hash,
-      status: oneOf("submitted", "included", "reverted"),
+      status: oneOf("unknown", "submitted", "rejected", "included", "reverted"),
       explorer: oneOf("https://explorer.altmempool.wtf/"),
     }),
   },

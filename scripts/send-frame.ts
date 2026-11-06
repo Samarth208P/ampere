@@ -1,42 +1,28 @@
 import { readFile, writeFile } from "node:fs/promises";
-import { withRecordingWriter } from "../src/lib/writer";
 import { setTimeout } from "node:timers/promises";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import type { Hex } from "viem";
-import { getProfile } from "@forshtat/hegota-support/profiles";
+import { withRecordingWriter } from "../src/lib/writer";
+import { RpcFailure } from "../src/lib/rpc";
+import { recordedCall } from "../src/lib/recorded-call";
 import {
-  frame,
-  newTx,
-  secp256k1Placeholder,
-  signTx,
-} from "@forshtat/hegota-support/tx";
-import { toWire } from "@forshtat/hegota-support/rpc";
-import { measuredRpc, RpcFailure } from "../src/lib/rpc";
+  buildFrameTransfer,
+  receiptStatus,
+  transactionRecord,
+} from "../src/lib/frame-transaction";
 import { ethereumUrl } from "../src/lib/collector";
 import { saveRecording } from "../src/lib/store";
 
-// One harmless, zero-value self transfer. Adapted from the MIT-licensed workshop.
 await withRecordingWriter(async (recording) => {
-  const call = async <T>(
-    method: string,
-    params: unknown[] = [],
-  ): Promise<T> => {
-    try {
-      const result = await measuredRpc<T>(
-        ethereumUrl(),
-        "ethereum",
-        method,
-        params,
-        15000,
-      );
-      recording.observations.push(result.observation);
-      return result.value;
-    } catch (error) {
-      if (error instanceof RpcFailure)
-        recording.observations.push(error.observation);
-      throw error;
-    }
-  };
+  const call = recordedCall(recording, ethereumUrl(), "ethereum", 15000);
+  if (
+    recording.transaction &&
+    ["submitted", "unknown"].includes(recording.transaction.status)
+  ) {
+    throw new Error(
+      `Previous transaction ${recording.transaction.hash} is unresolved. Run npm run ethereum:inspect before sending again.`,
+    );
+  }
   const chainId = Number(await call<string>("eth_chainId"));
   if (chainId !== 1337)
     throw new Error(
@@ -56,6 +42,10 @@ await withRecordingWriter(async (recording) => {
     BigInt(await call<string>("eth_getBalance", [account.address, "latest"])) <
     1_000_000_000_000_000n
   ) {
+    if (!process.argv.includes("--faucet"))
+      throw new Error(
+        `Fund ${account.address} with at least 0.001 workshop devnet ETH (chain 1337), then rerun. No transaction sent. Use npm run ethereum:send:faucet only to request faucet funding.`,
+      );
     await call("skandha_explorer_faucet", [account.address]);
     let funded = false;
     for (let i = 0; i < 15; i++) {
@@ -72,62 +62,59 @@ await withRecordingWriter(async (recording) => {
     if (!funded)
       throw new Error("Faucet funding not observed within 30 seconds.");
   }
-  const profile = getProfile("ethrex-eip8141-tracer");
-  const tx = await signTx(
-    profile,
-    newTx({
-      chainId,
-      sender: account.address,
-      nonceSeq: BigInt(
-        await call<string>("eth_getTransactionCount", [
-          account.address,
-          "pending",
-        ]),
-      ),
-      frames: [
-        frame(profile, "VERIFY", {
-          scope: "EXECUTION_AND_PAYMENT",
-          target: null,
-          execution: 30_000n,
-        }),
-        frame(profile, "SENDER", {
-          target: account.address,
-          execution: 50_000n,
-          state: 200_000n,
-          value: 0n,
-        }),
-      ],
-      signatures: [secp256k1Placeholder(profile, "0x")],
-      fees: { maxFeePerGas: 2_000_000_000n },
-    }),
+  const { hash, wire } = await buildFrameTransfer(
     key,
+    BigInt(
+      await call<string>("eth_getTransactionCount", [
+        account.address,
+        "pending",
+      ]),
+    ),
   );
-  const hash = await call<string>("eth_sendFrameTransaction", [toWire(tx)]);
-  if (!/^0x[0-9a-f]{64}$/i.test(hash))
-    throw new Error("Unexpected submission response");
-  recording.transaction = {
-    hash,
-    status: "submitted",
-    explorer: "https://explorer.altmempool.wtf/",
-  };
+  // Retain the local hash before submission, including ambiguous transport failures.
+  recording.transaction = transactionRecord(hash, "unknown");
+  delete recording.admission;
+  await saveRecording(recording);
+  try {
+    const returnedHash = await call<string>("eth_sendFrameTransaction", [wire]);
+    if (
+      typeof returnedHash !== "string" ||
+      returnedHash.toLowerCase() !== hash.toLowerCase()
+    )
+      throw new Error(
+        "Submission hash mismatch; inspect the locally computed hash before retrying.",
+      );
+    recording.transaction.status = "submitted";
+  } catch (error) {
+    if (
+      error instanceof RpcFailure &&
+      error.observation.outcome === "rpc-error"
+    )
+      recording.transaction.status = "rejected";
+    console.log(`Inspectable transaction hash: ${hash}`);
+    throw error;
+  }
   await saveRecording(recording);
   console.log(`Submitted ${hash}. Waiting for receipt.`);
   for (let i = 0; i < 20; i++) {
     await setTimeout(2000);
-    const receipt = await call<{
-      status: string;
-      frameReceipts?: { status: string }[];
-    } | null>("eth_getTransactionReceipt", [hash]);
-    if (receipt) {
-      recording.transaction.status =
-        receipt.status === "0x1" &&
-        (receipt.frameReceipts ?? []).every((f) => f.status === "0x1")
-          ? "included"
-          : "reverted";
+    const status = receiptStatus(
+      await call("eth_getTransactionReceipt", [hash]),
+    );
+    if (status) {
+      recording.transaction.status = status;
       break;
     }
   }
   console.log(
     `${recording.transaction.status}: ${hash}\nExplorer: ${recording.transaction.explorer} (search the hash)`,
   );
+  if (recording.transaction.status === "reverted")
+    throw new Error(
+      "Transaction or one of its frames reverted. Inspect its admission evidence.",
+    );
+  if (recording.transaction.status === "submitted")
+    console.log(
+      "Receipt still pending. Run npm run ethereum:inspect later; do not resubmit.",
+    );
 });
