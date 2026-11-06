@@ -1,0 +1,7 @@
+.next
+.reference
+.ampere
+node_modules
+package-lock.json
+artifacts
+test-results

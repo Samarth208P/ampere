@@ -5,37 +5,100 @@ import { assertLocalEndpoint, measuredRpc, RpcFailure } from "../src/lib/rpc";
 import { readRecording, saveRecording } from "../src/lib/store";
 import { containerResources } from "../src/lib/container";
 
-const url = assertLocalEndpoint(process.env.ARKIV_RPC_URL || "http://127.0.0.1:8545");
-const file = process.argv[2] || ".ampere/benchmark-cases.json";
-const cases: { query: string; limit: number }[] = JSON.parse(await readFile(file, "utf8"));
-if (!Array.isArray(cases) || cases.length < 1 || cases.length > 4 || cases.some((c) => typeof c.query !== "string" || c.query.length > 2000 || !Number.isInteger(c.limit) || c.limit < 1 || c.limit > 10)) throw new Error("Use 1–4 cases with query strings ≤2000 chars and limits 1–10.");
+const url = assertLocalEndpoint(
+  process.env.ARKIV_RPC_URL || "http://127.0.0.1:8545",
+);
+const file =
+  process.argv.slice(2).find((arg) => !arg.startsWith("--")) ||
+  ".ampere/benchmark-cases.json";
+const fixedBlock = process.argv.includes("--fixed-block");
+const cases: { query: string; limit: number }[] = JSON.parse(
+  await readFile(file, "utf8"),
+);
+if (
+  !Array.isArray(cases) ||
+  cases.length < 1 ||
+  cases.length > 4 ||
+  cases.some(
+    (c) =>
+      typeof c.query !== "string" ||
+      c.query.length > 2000 ||
+      !Number.isInteger(c.limit) ||
+      c.limit < 1 ||
+      c.limit > 10,
+  )
+)
+  throw new Error(
+    "Use 1–4 cases with query strings ≤2000 chars and limits 1–10.",
+  );
 await mkdir(".ampere", { recursive: true });
-const lock = await open(".ampere/writer.lock", "wx").catch(() => { throw new Error("Stop the collector before benchmarking."); });
+const lock = await open(".ampere/writer.lock", "wx").catch(() => {
+  throw new Error("Stop the collector before benchmarking.");
+});
 const recording = await readRecording();
 const runId = randomUUID();
 let stoppedEarly = false;
 let samples = 0;
 try {
-  const block = (await measuredRpc<string>(url, "arkiv", "eth_blockNumber")).value;
-  // All queries use the same state and are sequential, capped at 40 requests total.
+  const block = (await measuredRpc<string>(url, "arkiv", "eth_blockNumber"))
+    .value;
+  // Sequential, capped at 40 requests. Retain the returned block for each sample.
   const privateMap = cases.map((value) => ({ id: randomUUID(), ...value }));
-  await writeFile(`.ampere/benchmark-${runId}.private.json`, JSON.stringify({ block, cases: privateMap }, null, 2));
+  await writeFile(
+    `.ampere/benchmark-${runId}.private.json`,
+    JSON.stringify({ block, cases: privateMap }, null, 2),
+  );
   outer: for (const item of privateMap) {
     for (let i = 0; i < 10; i++) {
       try {
-        const result = await measuredRpc(url, "arkiv", "arkiv_query", [item.query, { limit: item.limit, atBlock: block }], 2000);
+        const result = await measuredRpc<{ blockNumber?: string }>(
+          url,
+          "arkiv",
+          "arkiv_query",
+          [
+            item.query,
+            { limit: item.limit, atBlock: fixedBlock ? block : "latest" },
+          ],
+          2000,
+        );
         result.observation.workloadId = item.id;
-        result.observation.summary = "Owned-node benchmark; query retained privately. Fixed block, concurrency 1, page limit ≤10.";
-        recording.observations.push(result.observation); samples++;
-        if (result.observation.durationMs > 1000) { stoppedEarly = true; break outer; }
+        if (typeof result.value.blockNumber === "string")
+          result.observation.blockNumber = result.value.blockNumber;
+        result.observation.summary = `Owned-node benchmark; query retained privately. ${fixedBlock ? "Fixed block" : "Moving chain head; underlying state can change"}, concurrency 1, page limit ≤10.`;
+        recording.observations.push(result.observation);
+        samples++;
+        if (result.observation.durationMs > 1000) {
+          stoppedEarly = true;
+          break outer;
+        }
       } catch (error) {
-        if (error instanceof RpcFailure) { error.observation.workloadId = item.id; recording.observations.push(error.observation); samples++; stoppedEarly = true; break outer; }
+        if (error instanceof RpcFailure) {
+          error.observation.workloadId = item.id;
+          recording.observations.push(error.observation);
+          samples++;
+          stoppedEarly = true;
+          break outer;
+        }
         throw error;
       }
       await setTimeout(200);
     }
   }
-  recording.benchmark = { runId, samples, cases: cases.length, block, completedAt: new Date().toISOString(), stoppedEarly };
+  recording.benchmark = {
+    runId,
+    samples,
+    cases: cases.length,
+    block,
+    blockPolicy: fixedBlock ? "fixed" : "moving-head",
+    completedAt: new Date().toISOString(),
+    stoppedEarly,
+  };
   recording.container = await containerResources();
-  console.log(`Benchmark ${runId}: ${samples} requests, ${stoppedEarly ? "stopped by latency/error guard" : "completed"}. Query shapes were not published.`);
-} finally { await saveRecording(recording); await lock.close(); await unlink(".ampere/writer.lock"); }
+  console.log(
+    `Benchmark ${runId}: ${samples} requests, ${stoppedEarly ? "stopped by latency/error guard" : "completed"}. Query shapes were not published.`,
+  );
+} finally {
+  await saveRecording(recording);
+  await lock.close();
+  await unlink(".ampere/writer.lock");
+}

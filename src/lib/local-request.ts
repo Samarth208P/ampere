@@ -2,7 +2,12 @@
 export function isLocalMutation(request: Request): boolean {
   try {
     const origin = new URL(request.headers.get("origin") || "");
-    return origin.protocol === "http:" && ["127.0.0.1", "localhost", "[::1]"].includes(origin.hostname)
-      && origin.host === request.headers.get("host");
-  } catch { return false; }
+    return (
+      origin.protocol === "http:" &&
+      ["127.0.0.1", "localhost", "[::1]"].includes(origin.hostname) &&
+      origin.host === request.headers.get("host")
+    );
+  } catch {
+    return false;
+  }
 }
