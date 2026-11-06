@@ -2,6 +2,7 @@ import os from "node:os";
 import { statfs } from "node:fs/promises";
 import { measuredRpc, RpcFailure, assertLocalEndpoint } from "./rpc";
 import { diskForecast } from "./analysis";
+import { containerResources } from "./container";
 import type { Network, NodeStatus, Observation, Recording, Resources } from "./types";
 
 export const ethereumUrl = () => process.env.ETHEREUM_RPC_URL || "https://altmempoolgateway.forshtat.com/rpc";
@@ -51,6 +52,6 @@ export async function collectNode(network: Network, url: string): Promise<{ node
 export async function collect(recording: Recording): Promise<Recording> {
   const arkiv = assertLocalEndpoint(process.env.ARKIV_RPC_URL || "http://127.0.0.1:8545");
   const results = await Promise.all([collectNode("arkiv", arkiv), collectNode("ethereum", ethereumUrl())]);
-  return { ...recording, mode: "live", nodes: results.map((r) => r.node), resources: await hostResources(),
+  return { ...recording, mode: "live", nodes: results.map((r) => r.node), resources: await hostResources(), container: await containerResources(),
     observations: [...recording.observations, ...results.flatMap((r) => r.observations)].slice(-1000) };
 }

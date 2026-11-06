@@ -12,5 +12,6 @@
 @media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
 .recorder-grid>*{min-width:0}
 .bar{padding:0;min-width:0}
+.extra-diagnostics{display:grid;gap:22px;margin-top:22px}.compact-value{font-size:14px!important}.panel-footnote{font-size:11px;line-height:1.8;color:#7b8da2;padding:0 22px 20px}.break-text{overflow-wrap:anywhere}.disk-alert{margin:0 22px 18px;padding:12px;background:#fff0df;border:1px solid #edd0aa;border-radius:5px;font-size:12px;color:#9f601b}.admission-checks{padding:0 22px 20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}.admission-checks>div{padding:12px;background:#f3f6fa;display:flex;justify-content:space-between;gap:10px;font-size:11px}.benchmark-summary{display:flex;align-items:flex-start;gap:12px;margin-top:22px;background:#e8f1ee;border:1px solid #ccdfd7;padding:16px 20px;border-radius:6px;color:#356e5e}.benchmark-summary svg{flex-shrink:0}.benchmark-summary strong{font-size:12px;font-weight:500}.benchmark-summary p{font-size:11px;margin-top:5px;line-height:1.7;color:#64877c}
 @media(max-width:1000px){.inspector{display:block}}
 @media(max-width:700px){.sidebar{flex-wrap:wrap;gap:12px}.sidebar nav{width:100%;margin-left:0}.nav-item{flex:1;justify-content:center}.comparison-list>div>span{min-width:0}}

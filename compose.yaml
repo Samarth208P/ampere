@@ -5,7 +5,7 @@ services:
       - "127.0.0.1:8545:8545"
     environment:
       ARKIV_STORE_PATH: /data/golemdb
-      ARKIV_STORE_HISTORY: head-only
+      ARKIV_STORE_HISTORY: "128"
     command:
       - node
       - --dev

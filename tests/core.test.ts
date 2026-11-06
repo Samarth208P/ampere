@@ -7,6 +7,8 @@ import { measuredRpc, RpcFailure, assertLocalEndpoint } from "../src/lib/rpc";
 import { percentile, summarize, diskForecast } from "../src/lib/analysis";
 import { fixtureRecording } from "../src/lib/fixture";
 import { canonical, makeReport, verifyReport } from "../src/lib/report";
+import { parseAdmission } from "../src/lib/admission";
+import { isLocalMutation } from "../src/lib/local-request";
 
 test("signed reports reject edited measurements, digest, signature and signer", () => {
   const key = generateKeyPairSync("ed25519").privateKey.export({ type: "pkcs8", format: "pem" }).toString();
@@ -35,6 +37,28 @@ test("disk forecast refuses short or shrinking usage windows", () => {
   assert.equal(diskForecast({ at: 0, free: 100 }, { at: 1000, free: 90 }), null);
   assert.equal(diskForecast({ at: 0, free: 100 }, { at: 86400000, free: 110 }), null);
   assert.equal(diskForecast({ at: 0, free: 100 }, { at: 86400000, free: 90 }), 9);
+});
+
+test("distinct query workloads never share a latency baseline", () => {
+  const seed = fixtureRecording().observations[0];
+  const rows = Array.from({ length: 10 }, (_, i) => ({ ...seed, workloadId: i < 5 ? "a" : "b", durationMs: i < 5 ? 10 : 400 }));
+  assert.equal(summarize(rows).length, 2);
+  assert.ok(summarize(rows).every((g) => g.ratio === null));
+});
+
+test("admission records retain explicit verdicts without transaction content", () => {
+  const data = parseAdmission({ admission: { outcome: "rejected", checks: [{ rule: "gas-limit", verdict: "fail", message: "secret-calldata" }] }, entry: { tx: "secret-calldata" }, events: [{ kind: "rejected", at: 1 }] }, "0xabc");
+  assert.equal(data.outcome, "rejected");
+  assert.equal(data.checks[0].verdict, "fail");
+  assert.equal(JSON.stringify(data).includes("secret-calldata"), false);
+  assert.equal(parseAdmission({ admission: null, events: [] }, "0xabc").outcome, "unavailable");
+});
+
+test("local mutation guard tolerates Next URL normalization but rejects foreign origins", () => {
+  const request = (origin: string, host: string) => new Request("http://localhost:3000/api/report", { headers: { origin, host } });
+  assert.equal(isLocalMutation(request("http://127.0.0.1:3000", "127.0.0.1:3000")), true);
+  assert.equal(isLocalMutation(request("http://evil.test", "evil.test")), false);
+  assert.equal(isLocalMutation(request("http://127.0.0.1:4000", "127.0.0.1:3000")), false);
 });
 
 test("Arkiv targets are loopback-only with no DNS or credentials", () => {

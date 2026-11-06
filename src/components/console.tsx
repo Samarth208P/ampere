@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Activity, ArrowDownToLine, ArrowUpRight, Box, Check, ChevronRight, CircleHelp, Cpu, Database, Fingerprint, HardDrive, Layers, Pause, Play, Radio, RefreshCw, Search, ShieldCheck, Upload, Zap } from "lucide-react";
 import { summarize, percentile } from "@/lib/analysis";
 import type { Observation, Recording } from "@/lib/types";
+import { ContainerDiagnostics, AdmissionDiagnostics, BenchmarkSummary } from "./diagnostics";
 
 const formatMs = (n: number | null) => n === null ? "—" : `${n.toFixed(1)} ms`;
 const gb = (n: number | null) => n === null ? "—" : `${(n / 1073741824).toFixed(1)} GB`;
@@ -116,6 +117,8 @@ export function Console() {
         </div>}
 
         {tab === "Reports" && <div className="reports-view"><section className="report-panel"><div className="report-icon"><Fingerprint size={32} /></div><h2>A portable record of what happened.</h2><p>Your report includes the current recording, measurement scope, a SHA-256 digest, and an Ed25519 signature. Raw request parameters and private keys stay out.</p><button className="primary-button" onClick={exportReport} disabled={exporting || !recording?.observations.length}><ArrowDownToLine size={17} />Download signed report</button><div className="report-facts"><span><Check size={15} />{recording?.observations.length ?? 0} observations</span><span><Check size={15} />{mode === "live" ? "Live measurements" : "Clearly marked synthetic data"}</span></div></section><section className="report-panel verify-panel"><ShieldCheck size={32} /><h2>Verify a report</h2><p>Check that its signed contents haven’t changed. Verification runs on this local AMPERE server; the file is not retained.</p><input className="sr-only" type="file" accept=".json,application/json" ref={fileInput} onChange={(event) => verifyFile(event.target.files?.[0])} /><button className="secondary-button" onClick={() => fileInput.current?.click()}><Upload size={17} />Choose report</button>{verification && <div className={`verification-result ${verification.valid ? "verified" : "invalid"}`} role="status"><strong>{verification.valid ? "Integrity verified" : "Integrity check failed"}</strong><p>{verification.valid ? "The digest and signature match this report." : "The report is modified, malformed, or signed incorrectly."}</p>{verification.sha256 && <code>{verification.sha256}</code>}</div>}<p className="verification-caveat">A valid signature proves integrity and possession of a key. It does not prove operator identity or measurement truth.</p></section></div>}
+        {tab === "Nodes" && <div className="extra-diagnostics"><ContainerDiagnostics recording={recording} /><AdmissionDiagnostics recording={recording} /></div>}
+        {tab === "Recorder" && <BenchmarkSummary recording={recording} />}
         <footer className="page-footer"><span><ShieldCheck size={14} />Evidence before conclusions.</span><span>Local storage · No analytics · MIT licensed</span></footer>
       </main>
     </div>

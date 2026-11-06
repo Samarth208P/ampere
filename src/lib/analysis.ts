@@ -7,7 +7,7 @@ export function percentile(values: number[], fraction: number): number | null {
 }
 
 export function summarize(observations: Observation[]) {
-  const groups = Map.groupBy(observations, (o) => `${o.network}:${o.method}`);
+  const groups = Map.groupBy(observations, (o) => `${o.network}:${o.method}:${o.workloadId ?? "default"}`);
   return [...groups].map(([key, rows]) => {
     // Errors/timeouts are not successful latency measurements.
     const successful = rows.filter((o) => o.outcome === "ok");
