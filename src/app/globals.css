@@ -359,9 +359,6 @@ h1 {
 }
 .attention {
   color: var(--ink);
-  text-decoration: underline;
-  text-decoration-style: dotted;
-  text-underline-offset: 4px;
 }
 .summary-strip .attention {
   color: var(--color-lavender-phosphor);
@@ -375,6 +372,9 @@ h1 {
 .report-panel {
   background: var(--surface);
   border-radius: var(--radius-cards);
+}
+.timeline-panel {
+  background: var(--color-liquid-deep);
 }
 .panel-heading {
   display: flex;
@@ -391,7 +391,7 @@ h1 {
   font-size: 14px;
   font-weight: 500;
 }
-.panel-heading > div > span {
+.panel-heading > div:not(.chart-legend) > span {
   display: block;
   margin-top: 8px;
   color: var(--muted);
@@ -411,6 +411,8 @@ h1 {
   white-space: nowrap;
 }
 .chart-legend i {
+  display: block;
+  flex-shrink: 0;
   width: 8px;
   height: 8px;
   border-radius: 2px;
@@ -474,7 +476,7 @@ h1 {
   max-width: 36px;
   border-radius: 2px 2px 0 0;
   padding: 0;
-  opacity: 0.8;
+  opacity: 1;
 }
 .bar:hover,
 .bar[aria-pressed="true"] {

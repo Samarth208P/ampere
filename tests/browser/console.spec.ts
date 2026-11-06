@@ -1,6 +1,44 @@
 import { test, expect } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 
+test("the app opens directly and the optional project explanation returns to it", async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "Request recorder", exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".project-hero")).toHaveCount(0);
+  await page.getByRole("link", { name: "How it works" }).click();
+  await expect(page).toHaveURL(/\/how-it-works$/);
+  await expect(
+    page.getByRole("heading", {
+      name: "Trace the request. Keep the evidence.",
+    }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "Workflow", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "From an exchange to an explanation." }),
+  ).toBeInViewport();
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page
+    .getByRole("link", { name: "Open app", exact: true })
+    .first()
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Request recorder", exact: true }),
+  ).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
 test("report endpoints reject foreign origins, malformed JSON and oversized uploads", async ({
   request,
   baseURL,
