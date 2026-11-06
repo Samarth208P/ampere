@@ -1,6 +1,7 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type { Recording } from "./types";
+import { nodeDiskForecast } from "./analysis";
 const exec = promisify(execFile);
 let baseline: { at: number; bytes: number } | undefined;
 
@@ -34,16 +35,12 @@ export async function containerResources(): Promise<Recording["container"]> {
     let days: number | null = null;
     if (bytes !== null && Number.isFinite(bytes)) {
       const now = Date.now();
-      if (
-        baseline &&
-        now - baseline.at >= 60_000 &&
-        bytes > baseline.bytes &&
-        free !== null &&
-        Number.isFinite(free)
-      ) {
-        days =
-          free / ((bytes - baseline.bytes) / (now - baseline.at)) / 86_400_000;
-      }
+      if (free !== null)
+        days = nodeDiskForecast(baseline ?? { at: now, bytes }, {
+          at: now,
+          bytes,
+          free,
+        });
       if (!baseline || bytes < baseline.bytes) baseline = { at: now, bytes };
     }
     const cpu = Number.parseFloat(stats.CPUPerc);

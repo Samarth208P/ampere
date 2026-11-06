@@ -27,6 +27,7 @@ import { summarize, percentile } from "@/lib/analysis";
 import type { Observation, Recording } from "@/lib/types";
 import {
   ContainerDiagnostics,
+  MethodDiagnostics,
   AdmissionDiagnostics,
   BenchmarkSummary,
 } from "./diagnostics";
@@ -267,10 +268,10 @@ export function Console() {
               </div>
               <h1>
                 {tab === "Recorder"
-                  ? "Know what your nodes went through."
+                  ? "Trace the request. Inspect the cost."
                   : tab === "Nodes"
-                    ? "A closer look at your infrastructure."
-                    : "Evidence you can take with you."}
+                    ? "Node state / resource counters"
+                    : "Signed records / integrity checks"}
               </h1>
               <p>
                 {tab === "Recorder"
@@ -880,6 +881,7 @@ export function Console() {
           {tab === "Nodes" && (
             <div className="extra-diagnostics">
               <ContainerDiagnostics recording={recording} />
+              <MethodDiagnostics recording={recording} />
               <AdmissionDiagnostics recording={recording} />
             </div>
           )}

@@ -40,24 +40,20 @@ test("inspect examples, filter requests, export and verify a signed report", asy
   const report = JSON.parse(content);
   expect(report.payload.recording.mode).toBe("fixture");
   await page.getByRole("button", { name: "Reports", exact: true }).click();
-  await page
-    .locator('input[type="file"]')
-    .setInputFiles({
-      name: "report.json",
-      mimeType: "application/json",
-      buffer: Buffer.from(content),
-    });
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "report.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(content),
+  });
   await expect(
     page.getByText("Integrity verified", { exact: true }),
   ).toBeVisible();
   report.payload.recording.observations[0].durationMs++;
-  await page
-    .locator('input[type="file"]')
-    .setInputFiles({
-      name: "modified.json",
-      mimeType: "application/json",
-      buffer: Buffer.from(JSON.stringify(report)),
-    });
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "modified.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(report)),
+  });
   await expect(
     page.getByText("Integrity check failed", { exact: true }),
   ).toBeVisible();
@@ -85,4 +81,12 @@ test("mobile console fits and live mode never silently becomes an example", asyn
   });
   await page.getByRole("button", { name: "Nodes", exact: true }).click();
   await expect(page.getByText("Collector host resources")).toBeVisible();
+  await expect(page.getByRole("alert")).toContainText("Capacity alert");
+  await expect(
+    page.getByText("example-only / synthetic", { exact: false }),
+  ).toBeVisible();
+  const counters = page.getByRole("table", { name: "RPC method counters" });
+  await expect(
+    counters.getByRole("row").filter({ hasText: "arkiv_getEntityCount" }),
+  ).toContainText("24");
 });

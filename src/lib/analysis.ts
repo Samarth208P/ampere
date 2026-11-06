@@ -64,3 +64,51 @@ export function diskForecast(
   if (elapsed < 60_000 || used <= 0 || current.free < 0) return null;
   return current.free / (used / elapsed) / 86_400_000;
 }
+
+/** Node data growth against the filesystem capacity shared with other writers. */
+export function nodeDiskForecast(
+  previous: { at: number; bytes: number },
+  current: { at: number; bytes: number; free: number },
+): number | null {
+  if (
+    ![
+      previous.at,
+      previous.bytes,
+      current.at,
+      current.bytes,
+      current.free,
+    ].every(Number.isFinite) ||
+    current.free < 0
+  )
+    return null;
+  if (current.free === 0) return 0;
+  const elapsed = current.at - previous.at;
+  const growth = current.bytes - previous.bytes;
+  return elapsed >= 60000 && growth > 0
+    ? current.free / (growth / elapsed) / 86400000
+    : null;
+}
+
+export function diskAlert(days: number | null): boolean {
+  return days !== null && Number.isFinite(days) && days >= 0 && days < 7;
+}
+
+/** Aggregate only traffic observed by AMPERE. Not node-wide RPC accounting. */
+export function methodMetrics(observations: Observation[]) {
+  return [...Map.groupBy(observations, (o) => `${o.network}:${o.method}`)]
+    .map(([key, rows]) => {
+      const successful = rows
+        .filter((o) => o.outcome === "ok")
+        .map((o) => o.durationMs);
+      return {
+        key,
+        network: rows[0].network,
+        method: rows[0].method,
+        count: rows.length,
+        failures: rows.length - successful.length,
+        p50: percentile(successful, 0.5),
+        p95: percentile(successful, 0.95),
+      };
+    })
+    .sort((a, b) => b.count - a.count || a.key.localeCompare(b.key));
+}

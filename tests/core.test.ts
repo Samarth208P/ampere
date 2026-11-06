@@ -9,6 +9,45 @@ import { fixtureRecording } from "../src/lib/fixture";
 import { canonical, makeReport, verifyReport } from "../src/lib/report";
 import { parseAdmission } from "../src/lib/admission";
 import { isLocalMutation } from "../src/lib/local-request";
+import {
+  nodeDiskForecast,
+  diskAlert,
+  methodMetrics,
+} from "../src/lib/analysis";
+
+test("node capacity warning covers low growth runway and a full filesystem", () => {
+  assert.equal(
+    nodeDiskForecast(
+      { at: 0, bytes: 100 },
+      { at: 86400000, bytes: 200, free: 350 },
+    ),
+    3.5,
+  );
+  assert.equal(diskAlert(3.5), true);
+  assert.equal(diskAlert(7), false);
+  assert.equal(diskAlert(null), false);
+  assert.equal(diskAlert(NaN), false);
+  assert.equal(
+    nodeDiskForecast({ at: 0, bytes: 100 }, { at: 100, bytes: 100, free: 0 }),
+    0,
+  );
+  assert.equal(diskAlert(0), true);
+  assert.equal(
+    nodeDiskForecast(
+      { at: 0, bytes: 100 },
+      { at: 86400000, bytes: 90, free: 350 },
+    ),
+    null,
+  );
+});
+
+test("method counters include failures while latency percentiles exclude them", () => {
+  const rows = methodMetrics(fixtureRecording().observations);
+  const eth = rows.find((row) => row.network === "ethereum")!;
+  assert.equal(eth.count, 12);
+  assert.equal(eth.failures, 1);
+  assert.equal(rows.find((row) => row.network === "arkiv")!.count, 24);
+});
 
 test("signed reports reject edited measurements, digest, signature and signer", () => {
   const key = generateKeyPairSync("ed25519")

@@ -43,5 +43,16 @@ export function fixtureRecording(): Recording {
       checkedAt: observations.at(-1)!.recordedAt,
     })),
     resources: null,
+    container: {
+      name: "example-only / synthetic",
+      recordedAt: observations.at(-1)!.recordedAt,
+      cpuPercent: 17.5,
+      memory: "512 MiB / 4 GiB",
+      blockIO: "120 MiB / 80 MiB",
+      pids: 32,
+      dataBytes: 64 * 1073741824,
+      filesystemFreeBytes: 12 * 1073741824,
+      diskDaysRemaining: 3.5,
+    },
   };
 }
