@@ -1,0 +1,25 @@
+services:
+  arkiv:
+    image: ghcr.io/arkiv-network/arkiv-reth@sha256:83d58d3d79c7d1a3e3b95cc94f2d9baa37cb2801d1cda6753727de46a8688a31
+    ports:
+      - "127.0.0.1:8545:8545"
+    environment:
+      ARKIV_STORE_PATH: /data/golemdb
+      ARKIV_STORE_HISTORY: head-only
+    command:
+      - node
+      - --dev
+      - --dev.block-time
+      - 2s
+      - --datadir
+      - /data
+      - --http
+      - --http.addr
+      - 0.0.0.0
+      - --http.api
+      - eth,net,web3
+      - --txpool.enforce-tracked-nonce
+    volumes:
+      - arkiv-data:/data
+volumes:
+  arkiv-data:
