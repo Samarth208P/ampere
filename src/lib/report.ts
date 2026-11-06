@@ -5,7 +5,8 @@ import {
   verify,
   createPublicKey,
 } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile, link, unlink } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import path from "node:path";
 import type { Recording } from "./types";
 import { assertRecording, isRecording } from "./recording-schema";
@@ -108,13 +109,21 @@ export async function signingKey(): Promise<string> {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
   }
   const { privateKey } = generateKeyPairSync("ed25519");
+  const temp = `${file}.${randomUUID()}.tmp`;
   try {
-    await writeFile(file, privateKey.export({ type: "pkcs8", format: "pem" }), {
+    await writeFile(temp, privateKey.export({ type: "pkcs8", format: "pem" }), {
       flag: "wx",
       mode: 0o600,
     });
+    // Publish only the fully written key. Concurrent first exports never read an
+    // empty/partial PEM and never replace another export's signer.
+    await link(temp, file);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+  } finally {
+    await unlink(temp).catch((error: NodeJS.ErrnoException) => {
+      if (error.code !== "ENOENT") throw error;
+    });
   }
   return readFile(file, "utf8");
 }

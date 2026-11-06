@@ -17,19 +17,20 @@ let previousCpu: { idle: number; total: number } | undefined;
 let diskBaseline: { at: number; free: number } | undefined;
 
 export async function hostResources(): Promise<Resources> {
-  const cpu = os
-    .cpus()
-    .reduce(
-      (sum, c) => ({
-        idle: sum.idle + c.times.idle,
-        total: sum.total + Object.values(c.times).reduce((a, b) => a + b, 0),
-      }),
-      { idle: 0, total: 0 },
-    );
+  const cpu = os.cpus().reduce(
+    (sum, c) => ({
+      idle: sum.idle + c.times.idle,
+      total: sum.total + Object.values(c.times).reduce((a, b) => a + b, 0),
+    }),
+    { idle: 0, total: 0 },
+  );
   const delta = previousCpu ? cpu.total - previousCpu.total : 0;
   const cpuPercent =
     previousCpu && delta > 0
-      ? (1 - (cpu.idle - previousCpu.idle) / delta) * 100
+      ? Math.max(
+          0,
+          Math.min(100, (1 - (cpu.idle - previousCpu.idle) / delta) * 100),
+        )
       : null;
   previousCpu = cpu;
   const disk = await statfs(
@@ -77,7 +78,7 @@ export async function collectNode(
   const node: NodeStatus = {
     network,
     connected: typeof client === "string",
-    client: typeof client === "string" ? client : null,
+    client: typeof client === "string" ? client.slice(0, 500) : null,
     chainId: null,
     block: null,
     peers: null,
@@ -87,13 +88,17 @@ export async function collectNode(
   if (!node.connected) return { node, observations };
   const chain = await read("eth_chainId");
   const block = await read("eth_blockNumber");
-  node.chainId = typeof chain === "string" ? chain : null;
-  node.block = typeof block === "string" ? block : null;
+  node.chainId =
+    typeof chain === "string" && /^0x[\da-f]+$/i.test(chain) ? chain : null;
+  node.block =
+    typeof block === "string" && /^0x[\da-f]+$/i.test(block) ? block : null;
   if (network === "arkiv") {
     const peers = await read("net_peerCount");
     const sync = await read("eth_syncing");
     node.peers =
-      typeof peers === "string" && /^0x[\da-f]+$/i.test(peers)
+      typeof peers === "string" &&
+      /^0x[\da-f]+$/i.test(peers) &&
+      Number.isSafeInteger(Number(peers))
         ? Number(BigInt(peers))
         : null;
     node.syncing =

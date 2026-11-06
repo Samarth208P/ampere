@@ -8,6 +8,8 @@
     "build": "next build",
     "start": "next start --hostname 127.0.0.1",
     "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck && npm test && npm run build",
+    "doctor": "tsx --env-file-if-exists=.env.local scripts/doctor.ts",
     "test": "tsx --test tests/*.test.ts",
     "test:e2e": "playwright test",
     "format": "prettier --write src scripts tests docs arkiv README.md package.json tsconfig.json playwright.config.ts next.config.ts compose.yaml",

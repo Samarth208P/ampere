@@ -7,6 +7,7 @@ import { withWriter, withRecordingWriter } from "../src/lib/writer";
 import { emptyRecording, readRecording, saveRecording } from "../src/lib/store";
 import { isRecording } from "../src/lib/recording-schema";
 import { fixtureRecording } from "../src/lib/fixture";
+import { signingKey, makeReport, verifyReport } from "../src/lib/report";
 
 test("schema rejects corrupt values and unapproved fields before sharing", () => {
   const good = fixtureRecording();
@@ -54,6 +55,11 @@ test("storage preserves corrupt input, cleans failed writers, and saves bounded 
   const dir = await mkdtemp(path.join(os.tmpdir(), "ampere-store-"));
   process.chdir(dir);
   try {
+    const keys = await Promise.all(
+      Array.from({ length: 12 }, () => signingKey()),
+    );
+    assert.equal(new Set(keys).size, 1);
+    assert.equal(verifyReport(makeReport(fixtureRecording(), keys[0])), true);
     assert.deepEqual(await readRecording(), emptyRecording());
     await withRecordingWriter(async (r) => {
       r.nodes = [];

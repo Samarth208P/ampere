@@ -1,4 +1,4 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, writeFile, stat } from "node:fs/promises";
 import { withRecordingWriter } from "../src/lib/writer";
 import { randomUUID } from "node:crypto";
 import { setTimeout } from "node:timers/promises";
@@ -12,9 +12,16 @@ const file =
   process.argv.slice(2).find((arg) => !arg.startsWith("--")) ||
   ".ampere/benchmark-cases.json";
 const fixedBlock = process.argv.includes("--fixed-block");
-const cases: { query: string; limit: number }[] = JSON.parse(
-  await readFile(file, "utf8"),
-);
+if ((await stat(file)).size > 20000)
+  throw new Error("Benchmark input exceeds 20 KB.");
+let cases: { query: string; limit: number }[];
+try {
+  cases = JSON.parse(await readFile(file, "utf8"));
+} catch {
+  throw new Error(
+    "Benchmark input is not valid JSON. Inspect the private file locally; its contents are not logged.",
+  );
+}
 if (
   !Array.isArray(cases) ||
   cases.length < 1 ||
@@ -52,7 +59,10 @@ await withRecordingWriter(async (recording) => {
     outer: for (const item of privateMap) {
       for (let i = 0; i < 10; i++) {
         try {
-          const result = await measuredRpc<{ blockNumber?: string }>(
+          const result = await measuredRpc<{
+            blockNumber: string;
+            data: unknown[];
+          }>(
             url,
             "arkiv",
             "arkiv_query",
@@ -62,6 +72,17 @@ await withRecordingWriter(async (recording) => {
             ],
             2000,
           );
+          if (
+            !result.value ||
+            !Array.isArray(result.value.data) ||
+            typeof result.value.blockNumber !== "string" ||
+            !/^0x[\da-f]+$/i.test(result.value.blockNumber)
+          ) {
+            result.observation.outcome = "transport-error";
+            result.observation.summary =
+              "Invalid Arkiv query response shape; benchmark stopped.";
+            throw new RpcFailure(result.observation);
+          }
           result.observation.workloadId = item.id;
           if (
             result.value &&

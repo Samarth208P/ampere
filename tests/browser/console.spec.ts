@@ -1,6 +1,61 @@
 import { test, expect } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 
+test("report endpoints reject foreign origins, malformed JSON and oversized uploads", async ({
+  request,
+}) => {
+  const headers = { origin: "http://127.0.0.1:3000" };
+  expect(
+    (
+      await request.post("/api/report?mode=fixture", {
+        headers: { origin: "https://example.org" },
+      })
+    ).status(),
+  ).toBe(403);
+  const exported = await request.post("/api/report?mode=fixture", { headers });
+  expect(exported.status()).toBe(200);
+  const verified = await request.post("/api/verify", {
+    headers,
+    data: await exported.text(),
+  });
+  expect((await verified.json()).valid).toBe(true);
+  expect(
+    (await request.post("/api/verify", { headers, data: "invalid" })).status(),
+  ).toBe(400);
+  expect(
+    (
+      await request.post("/api/verify", { headers, data: "x".repeat(2000001) })
+    ).status(),
+  ).toBe(413);
+});
+
+test("pause stops polling and manual refresh still reads the recording", async ({
+  page,
+}) => {
+  const { fixtureRecording } = await import("../../src/lib/fixture");
+  const data = fixtureRecording();
+  data.mode = "live";
+  data.observations.forEach((o) => {
+    o.source = "live";
+  });
+  let reads = 0;
+  await page.clock.install();
+  await page.route("**/api/recording?mode=live", (route) => {
+    reads++;
+    return route.fulfill({ json: data });
+  });
+  await page.goto("/");
+  await expect(page.locator("tbody tr")).toHaveCount(36);
+  await page.getByRole("button", { name: "Pause view updates" }).click();
+  await page.clock.fastForward(15000);
+  expect(reads).toBe(1);
+  await page.getByRole("button", { name: "Refresh recording" }).click();
+  await expect.poll(() => reads).toBe(2);
+  await page.getByRole("button", { name: "Resume view updates" }).click();
+  await page.clock.fastForward(6000);
+  await expect.poll(() => reads).toBe(3);
+});
+
 test("inspect examples, filter requests, export and verify a signed report", async ({
   page,
 }) => {

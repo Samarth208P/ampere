@@ -44,16 +44,27 @@ export async function containerResources(): Promise<Recording["container"]> {
       if (!baseline || bytes < baseline.bytes) baseline = { at: now, bytes };
     }
     const cpu = Number.parseFloat(stats.CPUPerc);
-    if (!Number.isFinite(cpu)) return undefined;
+    const pids = Number(stats.PIDs);
+    if (
+      !Number.isFinite(cpu) ||
+      cpu < 0 ||
+      !Number.isSafeInteger(pids) ||
+      pids < 0 ||
+      typeof stats.MemUsage !== "string" ||
+      typeof stats.BlockIO !== "string"
+    )
+      return undefined;
     return {
       name,
       recordedAt: new Date().toISOString(),
       cpuPercent: cpu,
       memory: String(stats.MemUsage),
       blockIO: String(stats.BlockIO),
-      pids: Number(stats.PIDs),
-      dataBytes: bytes !== null && Number.isFinite(bytes) ? bytes : null,
-      filesystemFreeBytes: free !== null && Number.isFinite(free) ? free : null,
+      pids,
+      dataBytes:
+        bytes !== null && Number.isFinite(bytes) && bytes >= 0 ? bytes : null,
+      filesystemFreeBytes:
+        free !== null && Number.isFinite(free) && free >= 0 ? free : null,
       diskDaysRemaining: days,
     };
   } catch {
