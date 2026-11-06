@@ -1,0 +1,17 @@
+{
+  "name": "ampere",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --hostname 127.0.0.1",
+    "build": "next build",
+    "start": "next start --hostname 127.0.0.1",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test tests/*.test.ts",
+    "collect": "tsx --env-file-if-exists=.env.local scripts/collect.ts",
+    "ethereum:send": "tsx --env-file-if-exists=.env.local scripts/send-frame.ts",
+    "verify": "tsx scripts/verify.ts"
+  },
+  "engines": { "node": ">=22.16" }
+}
