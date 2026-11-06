@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { summarize, percentile } from "@/lib/analysis";
 import type { Observation, Recording } from "@/lib/types";
+import { isRecording } from "@/lib/recording-schema";
 import {
   ContainerDiagnostics,
   MethodDiagnostics,
@@ -51,23 +52,47 @@ export function Console() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [exporting, setExporting] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const [verification, setVerification] = useState<{
     valid: boolean;
     sha256?: string;
   } | null>(null);
   const [refresh, setRefresh] = useState(0);
   const fileInput = useRef<HTMLInputElement>(null);
+  const pausedRef = useRef(paused);
+  useEffect(() => {
+    pausedRef.current = paused;
+  }, [paused]);
+
+  function switchMode(next: "live" | "fixture") {
+    if (next === mode) return;
+    setRecording(null);
+    setMode(next);
+    setSelected(null);
+    setError("");
+    setNotice("");
+    setPaused(false);
+  }
 
   useEffect(() => {
     let active = true;
     const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout> | undefined;
     async function load() {
       try {
         const response = await fetch(`/api/recording?mode=${mode}`, {
-          signal: controller.signal,
+          signal: AbortSignal.any([
+            controller.signal,
+            AbortSignal.timeout(10000),
+          ]),
+          cache: "no-store",
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error);
+        if (!isRecording(data) || data.mode !== mode)
+          throw new Error(
+            "The server returned an invalid recording. Check the collector and refresh.",
+          );
         if (active) {
           setRecording(data);
           setError("");
@@ -77,17 +102,21 @@ export function Console() {
           setError(
             e instanceof Error ? e.message : "Could not read the recording.",
           );
+      } finally {
+        if (active && mode === "live") timer = setTimeout(tick, 5000);
       }
     }
+    function tick() {
+      if (pausedRef.current) timer = setTimeout(tick, 5000);
+      else void load();
+    }
     void load();
-    const timer =
-      !paused && mode === "live" ? setInterval(load, 5000) : undefined;
     return () => {
       active = false;
       controller.abort();
-      clearInterval(timer);
+      clearTimeout(timer);
     };
-  }, [mode, paused, refresh]);
+  }, [mode, refresh]);
 
   const rows = (recording?.observations ?? []).filter(
     (o) =>
@@ -102,7 +131,13 @@ export function Console() {
     rows.filter((o) => o.outcome === "ok").map((o) => o.durationMs),
     0.95,
   );
-  const latest = recording?.observations.at(-1)?.recordedAt;
+  const latest = recording?.observations.reduce<string | undefined>(
+    (last, o) =>
+      !last || Date.parse(o.recordedAt) > Date.parse(last)
+        ? o.recordedAt
+        : last,
+    undefined,
+  );
   const [now, setNow] = useState(0);
   useEffect(() => {
     setNow(Date.now());
@@ -117,6 +152,7 @@ export function Console() {
     try {
       const response = await fetch(`/api/report?mode=${mode}`, {
         method: "POST",
+        signal: AbortSignal.timeout(15000),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Export failed.");
@@ -138,25 +174,30 @@ export function Console() {
 
   async function verifyFile(file?: File) {
     if (!file) return;
+    if (fileInput.current) fileInput.current.value = "";
     setVerification(null);
     setNotice("");
     if (file.size > 2_000_000) {
       setNotice("Choose a report smaller than 2 MB.");
       return;
     }
+    setVerifying(true);
     try {
       const response = await fetch("/api/verify", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: await file.text(),
+        signal: AbortSignal.timeout(15000),
       });
       const result = await response.json();
-      if (result.error) throw new Error(result.error);
+      if (result.error || (!response.ok && response.status !== 400))
+        throw new Error(result.error || "Verification failed.");
       setVerification(result);
     } catch {
       setNotice("Could not verify this report. Check the file and try again.");
+    } finally {
+      setVerifying(false);
     }
-    if (fileInput.current) fileInput.current.value = "";
   }
 
   return (
@@ -187,6 +228,7 @@ export function Console() {
             <button
               key={name}
               className={`nav-item ${tab === name ? "active" : ""}`}
+              aria-current={tab === name ? "page" : undefined}
               onClick={() => setTab(name)}
             >
               <Icon size={19} />
@@ -303,7 +345,11 @@ export function Console() {
                   ? "Illustrative recording"
                   : stale
                     ? "Saved live recording"
-                    : "Live measurements"}
+                    : !latest
+                      ? "Waiting for measurements"
+                      : paused
+                        ? "View paused"
+                        : "Live measurements"}
               </strong>
               <span>
                 {mode === "fixture"
@@ -316,21 +362,15 @@ export function Console() {
             <div className="mode-switch" aria-label="Recording source">
               <button
                 aria-pressed={mode === "live"}
-                onClick={() => {
-                  setRecording(null);
-                  setMode("live");
-                  setSelected(null);
-                }}
+                disabled={exporting}
+                onClick={() => switchMode("live")}
               >
                 Live
               </button>
               <button
                 aria-pressed={mode === "fixture"}
-                onClick={() => {
-                  setRecording(null);
-                  setMode("fixture");
-                  setSelected(null);
-                }}
+                disabled={exporting}
+                onClick={() => switchMode("fixture")}
               >
                 Example
               </button>
@@ -545,9 +585,11 @@ export function Console() {
                     Showing {Math.min(rows.length, 100)} of {rows.length}{" "}
                     requests
                     <span>
-                      {paused
-                        ? "View updates paused"
-                        : "View refreshes every 5s"}
+                      {mode === "fixture"
+                        ? "Static example recording"
+                        : paused
+                          ? "View updates paused"
+                          : "View refreshes every 5s"}
                     </span>
                   </div>
                 </section>
@@ -686,7 +728,8 @@ export function Console() {
                     <span
                       className={`outcome ${node.connected && (mode === "fixture" || now - Date.parse(node.checkedAt) <= 30000) ? "success" : "failure"}`}
                     >
-                      {stale
+                      {mode === "live" &&
+                      now - Date.parse(node.checkedAt) > 30000
                         ? "Last known state"
                         : node.connected
                           ? "Connected"
@@ -848,10 +891,11 @@ export function Console() {
                 />
                 <button
                   className="secondary-button"
+                  disabled={verifying}
                   onClick={() => fileInput.current?.click()}
                 >
                   <Upload size={17} />
-                  Choose report
+                  {verifying ? "Verifying…" : "Choose report"}
                 </button>
                 {verification && (
                   <div

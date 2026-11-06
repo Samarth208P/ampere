@@ -8,18 +8,28 @@ export async function POST(request: Request) {
       { error: "Same-origin local requests required." },
       { status: 403 },
     );
-  const fixture = new URL(request.url).searchParams.get("mode") === "fixture";
-  const recording = fixture ? fixtureRecording() : await readRecording();
-  if (!recording.observations.length)
+  try {
+    const fixture = new URL(request.url).searchParams.get("mode") === "fixture";
+    const recording = fixture ? fixtureRecording() : await readRecording();
+    if (!recording.observations.length)
+      return Response.json(
+        { error: "Collect some requests before exporting a report." },
+        { status: 409 },
+      );
+    const report = makeReport(recording, await signingKey());
+    return Response.json(report, {
+      headers: {
+        "Cache-Control": "no-store",
+        "Content-Disposition": `attachment; filename="ampere-${recording.mode}-${report.sha256.slice(0, 12)}.json"`,
+      },
+    });
+  } catch {
     return Response.json(
-      { error: "Collect some requests before exporting a report." },
-      { status: 409 },
+      {
+        error:
+          "Could not export the recording. Check .ampere/recording.json and write access to .ampere, then try again.",
+      },
+      { status: 500 },
     );
-  const report = makeReport(recording, await signingKey());
-  return Response.json(report, {
-    headers: {
-      "Cache-Control": "no-store",
-      "Content-Disposition": `attachment; filename="ampere-${recording.mode}-${report.sha256.slice(0, 12)}.json"`,
-    },
-  });
+  }
 }

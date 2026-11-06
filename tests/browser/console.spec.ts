@@ -13,6 +13,8 @@ test("inspect examples, filter requests, export and verify a signed report", asy
     page.getByText("Illustrative recording", { exact: true }),
   ).toBeVisible();
   await expect(page.locator("tbody tr")).toHaveCount(36);
+  await page.getByRole("button", { name: "Example", exact: true }).click();
+  await expect(page.locator("tbody tr")).toHaveCount(36);
   await page.getByRole("button", { name: "Arkiv", exact: true }).click();
   await expect(page.locator("tbody tr")).toHaveCount(24);
   await page
@@ -58,6 +60,48 @@ test("inspect examples, filter requests, export and verify a signed report", asy
     page.getByText("Integrity check failed", { exact: true }),
   ).toBeVisible();
   expect(errors).toEqual([]);
+});
+
+test("invalid live responses show a recoverable error without fixture fallback", async ({
+  page,
+}) => {
+  await page.route("**/api/recording?mode=live", (route) =>
+    route.fulfill({ json: { observations: null } }),
+  );
+  await page.goto("/");
+  await expect(
+    page.getByRole("alert").filter({ hasText: "invalid recording" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Live", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "Example", exact: true }).click();
+  await expect(page.locator("tbody tr")).toHaveCount(36);
+  await expect(
+    page.getByRole("alert").filter({ hasText: "invalid recording" }),
+  ).toHaveCount(0);
+});
+
+test("a recent request does not hide stale node checks", async ({ page }) => {
+  const { fixtureRecording } = await import("../../src/lib/fixture");
+  const data = fixtureRecording();
+  data.mode = "live";
+  data.observations.forEach((o) => {
+    o.source = "live";
+    o.recordedAt = new Date().toISOString();
+  });
+  data.nodes.forEach((n) => {
+    n.checkedAt = new Date(Date.now() - 600000).toISOString();
+  });
+  await page.route("**/api/recording?mode=live", (route) =>
+    route.fulfill({ json: data }),
+  );
+  await page.goto("/");
+  await page.getByRole("button", { name: "Nodes", exact: true }).click();
+  await expect(page.getByText("Last known state", { exact: true })).toHaveCount(
+    2,
+  );
+  await expect(page.getByText("Connected", { exact: true })).toHaveCount(0);
 });
 
 test("mobile console fits and live mode never silently becomes an example", async ({
