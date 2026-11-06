@@ -41,7 +41,7 @@ const time = (value: string) =>
   new Date(value).toLocaleTimeString("en-GB", { hour12: false });
 const names = { ethereum: "Ethereum", arkiv: "Arkiv" };
 
-export function Console() {
+export function Console({ hosted = false }: { hosted?: boolean }) {
   const [mode, setMode] = useState<"live" | "fixture">("live");
   const [recording, setRecording] = useState<Recording | null>(null);
   const [tab, setTab] = useState("Recorder");
@@ -214,7 +214,7 @@ export function Console() {
             <Box size={19} />
           </span>
           <div>
-            Local workspace<small>Infrastructure observability</small>
+            {hosted ? "Shared recorder" : "Local workspace"}<small>Infrastructure observability</small>
           </div>
           <span className="workspace-light" />
         </div>
@@ -288,7 +288,7 @@ export function Console() {
           <div className="topbar-right">
             <span className="local-badge">
               <span className="dot green" />
-              Local-first
+              {hosted ? "Signed snapshots" : "Local-first"}
             </span>
             <a
               href="https://ethglobal.com/events/mumbai/prizes"
@@ -880,7 +880,7 @@ export function Console() {
                 <h2>Verify a report</h2>
                 <p>
                   Check that its signed contents haven’t changed. Verification
-                  runs on this local AMPERE server; the file is not retained.
+                  runs on {hosted ? "the hosted" : "this local"} AMPERE server; the file is not retained.
                 </p>
                 <input
                   className="sr-only"
@@ -935,7 +935,7 @@ export function Console() {
               <ShieldCheck size={14} />
               Evidence before conclusions.
             </span>
-            <span>Local storage · No analytics · MIT licensed</span>
+            <span>{hosted ? "Hosted snapshots" : "Local storage"} · No analytics · MIT licensed</span>
           </footer>
         </main>
       </div>

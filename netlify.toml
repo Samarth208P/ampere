@@ -1,0 +1,9 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# Netlify auto-detects Next.js and installs the OpenNext adapter.
+# Set runtime variables in Netlify's environment settings, not this file.

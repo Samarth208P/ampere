@@ -10,6 +10,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import type { Recording } from "./types";
 import { assertRecording } from "./recording-schema";
+import { publishRecording } from "./publish";
 
 const filename = () => path.join(process.cwd(), ".ampere", "recording.json");
 export const emptyRecording = (): Recording => ({
@@ -51,4 +52,10 @@ export async function saveRecording(recording: Recording) {
       if (error.code !== "ENOENT") throw error;
     });
   }
+  // Local recording remains authoritative if the optional cloud mirror is down.
+  await publishRecording(snapshot).catch(() =>
+    console.warn(
+      "Cloud snapshot upload failed; local recording was saved. Check publish URL, token, signer and network. The next collection will retry.",
+    ),
+  );
 }
