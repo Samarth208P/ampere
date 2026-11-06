@@ -81,7 +81,9 @@ test("mobile console fits and live mode never silently becomes an example", asyn
   });
   await page.getByRole("button", { name: "Nodes", exact: true }).click();
   await expect(page.getByText("Collector host resources")).toBeVisible();
-  await expect(page.getByRole("alert")).toContainText("Capacity alert");
+  await expect(
+    page.getByRole("alert").filter({ hasText: "Capacity alert" }),
+  ).toBeVisible();
   await expect(
     page.getByText("example-only / synthetic", { exact: false }),
   ).toBeVisible();

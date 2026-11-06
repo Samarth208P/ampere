@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./terminal.css";
 export const metadata: Metadata = {
   title: "AMPERE — Infrastructure flight recorder",
   description:

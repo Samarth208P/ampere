@@ -1,0 +1,385 @@
+/* Instrument palette: hierarchy comes from type, borders and recorded state. */
+:root {
+  color-scheme: dark;
+  --navy: #111719;
+  --ink: #dde6df;
+  --muted: #9baaa2;
+  --line: #2d393c;
+  --blue: #adcbb4;
+  --teal: #83b8a8;
+  --amber: #e8bc83;
+  --surface: #172024;
+  --background: #101619;
+}
+body {
+  font-family: Consolas, "SFMono-Regular", "Liberation Mono", monospace;
+}
+.sidebar {
+  background: #111719;
+  border-right: 1px solid var(--line);
+  color: #a6b6ad;
+}
+.brand {
+  font-size: 29px;
+  letter-spacing: -1.8px;
+  color: #e4eee6;
+}
+.brand-mark {
+  color: #111719;
+  background: #adcbb4;
+  transform: none;
+  border-radius: 2px;
+}
+.brand-period {
+  color: #adcbb4;
+}
+.workspace {
+  border-color: #33413f;
+  border-radius: 3px;
+  color: #d1dfd4;
+}
+.workspace small,
+.workspace-icon,
+.nav-label,
+.sidebar-node small,
+.sidebar-bottom,
+.sidebar-bottom p {
+  color: #95a69b;
+}
+.workspace-light,
+.green {
+  background: #9ec6a9;
+}
+.nav-item {
+  color: #a8b7ae;
+  border-radius: 2px;
+}
+.nav-item.active {
+  background: #25312c;
+  color: #dcecdf;
+  box-shadow: inset 2px 0 #accdb6;
+}
+.nav-item:hover {
+  background: #202c28;
+}
+.nav-count {
+  background: #3a4d40;
+  border-radius: 2px;
+  color: #d8e7d8;
+}
+.sidebar-networks {
+  border-color: var(--line);
+}
+.sidebar-node {
+  color: #c3d2c8;
+}
+.network-symbol,
+.network-symbol.arkiv {
+  border-radius: 2px;
+  background: #24332e;
+  color: #a0c4af;
+}
+.sidebar-bottom > svg {
+  color: #95b6a0;
+}
+.sidebar-bottom strong {
+  color: #cbdbd0;
+}
+.version {
+  border-color: #43534a;
+  border-radius: 2px;
+}
+.topbar {
+  background: #141c20;
+}
+.avatar {
+  background: #27372f;
+  border-color: #34463a;
+  border-radius: 3px;
+  color: #c4dac9;
+}
+.heading-caption {
+  color: #a5c0af;
+}
+h1 {
+  font-size: 26px;
+  font-weight: 500;
+  letter-spacing: -1.1px;
+}
+.primary-button {
+  background: #b8cfbd;
+  color: #15211b;
+  border-radius: 3px;
+  box-shadow: none;
+  font-weight: 600;
+}
+.primary-button:hover {
+  background: #d0e1d3;
+}
+.secondary-button {
+  background: #223129;
+  border-color: #475d4b;
+  color: #d2e3d5;
+  border-radius: 3px;
+}
+.recording-banner {
+  background: #182720;
+  border-color: #344c3d;
+  border-radius: 3px;
+}
+.recording-banner > div:first-child > span:last-child {
+  color: #b0c3b5;
+}
+.fixture-banner {
+  background: #2b251c;
+  border-color: #594631;
+}
+.mode-switch {
+  background: #0e1612;
+  border-radius: 2px;
+}
+.mode-switch button {
+  color: #9eafa4;
+  border-radius: 2px;
+}
+.mode-switch button[aria-pressed="true"] {
+  background: #3a5142;
+  color: #e0ece2;
+  box-shadow: none;
+}
+.blue {
+  background: #9cadcd;
+}
+.teal {
+  background: #83b8a8;
+}
+.amber {
+  background: #e8bc83;
+}
+.summary-strip > div {
+  border-color: var(--line);
+}
+.summary-strip small {
+  color: #98a99e;
+}
+.timeline-panel,
+.requests-panel,
+.inspector,
+.comparison-panel,
+.node-panel,
+.host-panel,
+.report-panel {
+  background: var(--surface);
+  border-radius: 3px;
+}
+.chart-scale,
+.chart-times {
+  color: #a0b0a6;
+}
+.chart-grid i {
+  border-color: #33433f;
+}
+.legend-ethereum,
+.bar-ethereum {
+  background: #a4b3d1;
+}
+.legend-arkiv,
+.bar-arkiv {
+  background: #83b8a8;
+}
+.legend-error,
+.bar-error {
+  background: #e8bc83;
+}
+.bar {
+  border-radius: 1px 1px 0 0;
+}
+.bar:hover,
+.bar[aria-pressed="true"] {
+  outline-color: #d7e8da;
+}
+.count-badge {
+  background: #2a3833;
+  color: #b1c5b7;
+  border-radius: 2px;
+}
+.icon-actions button,
+.inspect-button {
+  color: #a1b5a7;
+}
+.icon-actions button:hover,
+.inspect-button:hover {
+  background: #304239;
+  color: #d5e9dc;
+}
+.filter-tabs button {
+  color: #a7b8ad;
+  border-radius: 2px;
+}
+.filter-tabs button[aria-pressed="true"] {
+  color: #e0eadf;
+  background: #34483b;
+}
+.search {
+  color: #acbdb1;
+  border-color: #3b4c43;
+  border-radius: 2px;
+}
+.search input {
+  background: transparent;
+  color: #d9e8dc;
+}
+.search input::placeholder {
+  color: #9aac9e;
+}
+th {
+  background: #121c1a;
+  color: #adbcaf;
+  border-color: var(--line);
+}
+td {
+  border-color: #29352f;
+}
+.network-label {
+  color: #a4b4a9;
+}
+.selected-row {
+  background: #273b31;
+}
+.selected-row td:first-child {
+  box-shadow: inset 2px 0 #a9ceb6;
+}
+.outcome {
+  border-radius: 2px;
+}
+.success {
+  background: #233c30;
+  color: #b0dbba;
+}
+.failure {
+  background: #3a2d1e;
+  color: #f0c28e;
+}
+.table-footer {
+  color: #a5b3a9;
+  border-color: var(--line);
+}
+.inspector-title {
+  color: #acc5b4;
+}
+.inspector-status {
+  color: #a9d3b7;
+}
+.inspector-status small,
+dt {
+  color: #a5b5ab;
+}
+.inspector-note {
+  color: #c0cfc4;
+  background: #1f2b25;
+  border-color: #3b4a40;
+  border-radius: 2px;
+}
+.observation-id {
+  color: #acbfb1;
+}
+.observation-id code {
+  color: #acbfb1;
+}
+.privacy-note {
+  background: #14211a;
+  color: #acbfb1;
+}
+.comparison-list > div {
+  border-color: var(--line);
+}
+.comparison-list small {
+  color: #a5b7ab;
+}
+.page-footer {
+  color: #a3b1a7;
+}
+.message {
+  background: #223a2b;
+  border-color: #3c6047;
+  color: #c1e4c9;
+}
+.message.error {
+  background: #3c271e;
+  color: #f3c2a5;
+  border-color: #805139;
+}
+.empty,
+.empty svg {
+  color: #a6b8ad;
+}
+.empty h3 {
+  color: #cad9ce;
+}
+.node-callout {
+  background: #202d26;
+  color: #bacdbf;
+  border-radius: 2px;
+}
+.node-callout a {
+  color: #bfd9c6;
+}
+.resource-grid svg,
+.resource-grid span,
+.resource-grid small,
+.panel-footnote {
+  color: #a5b6aa;
+}
+.report-icon {
+  background: #2d4034;
+  color: #bed5c5;
+  border-radius: 3px;
+}
+.report-panel > p,
+.report-facts {
+  color: #aebfb3;
+}
+.verify-panel > svg {
+  color: #b1d3bf;
+}
+.verified {
+  background: #294332;
+  color: #c3e4c8;
+}
+.invalid {
+  background: #432c20;
+  color: #ecc09f;
+}
+.disk-alert {
+  background: #3b2d1c;
+  border-color: #8b693d;
+  color: #f1cd9b;
+}
+.admission-checks > div {
+  background: #23322a;
+}
+.benchmark-summary {
+  background: #203229;
+  border-color: #415c4a;
+  color: #c3dfcb;
+  border-radius: 3px;
+}
+.benchmark-summary p {
+  color: #afc7b8;
+}
+.method-metrics {
+  min-width: 0;
+}
+button:focus-visible,
+a:focus-visible,
+input:focus-visible {
+  outline-color: #d7e6b5;
+}
+@media (max-width: 700px) {
+  h1 {
+    font-size: 23px;
+  }
+  .brand {
+    font-size: 25px;
+  }
+}
