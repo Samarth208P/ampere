@@ -28,6 +28,12 @@ Browser tests exercise source switching, filters, request selection, export,
 verification of original and altered reports, and a 390px mobile viewport.
 Screenshots are generated under ignored `artifacts/`.
 
+The requirements pass added per-method request/failure counters and successful
+call p50/p95 to Nodes. Ten core tests and two browser tests pass, including node
+capacity forecast boundaries, a full-filesystem edge case, method counters, and
+the explicitly synthetic 3.5-day disk alert in Example mode. A selected synthetic
+console screenshot is intentionally committed under `docs/assets/` for the README.
+
 ## Not yet verified
 
 Funded Ethereum frame submission, actual admission rules for that transaction,

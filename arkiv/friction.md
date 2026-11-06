@@ -2,6 +2,8 @@
 
 Observed 2026-11-06 against the image digest pinned in `compose.yaml`.
 No slow-query shapes or sensitive benchmark parameters are published here.
+Node identity is in [Compose](../compose.yaml); upstream code references are in
+[SOURCES.md](../docs/SOURCES.md). Reproduction uses the [README](../README.md#protocol-paths).
 
 ## SDK and node write surfaces differ
 
@@ -48,4 +50,3 @@ The source's single-node Compose configuration made a real local setup practical
 An official compatibility-pinned minimal node plus a diagnostic health command
 would reduce first-run time. Per-method execution counters and resource metrics
 would help distinguish server cost from end-to-end RPC latency.
-

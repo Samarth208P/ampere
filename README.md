@@ -1,17 +1,39 @@
-# AMPERE
+<p align="center">
+  <img src="docs/assets/ampere-banner.svg" alt="AMPERE — infrastructure flight recorder" width="100%" />
+</p>
 
-A flight recorder for blockchain infrastructure. Record requests, compare their
-latency, inspect node resources, and export signed evidence.
+<p align="center">
+  <a href="#boot">Boot</a> ·
+  <a href="#instrumentation">Instrumentation</a> ·
+  <a href="#protocol-paths">Protocol paths</a> ·
+  <a href="docs/REQUIREMENTS.md">Track audit</a> ·
+  <a href="docs/DEMO.md">Demo runbook</a> ·
+  <a href="LICENSE">MIT</a>
+</p>
 
-Built for **ETHGlobal Mumbai 2026**, targeting **Ethereum Foundation: Frame
-Transaction Alternative Mempool** and **Arkiv: Node tooling**. Track fit is based
-on the [official requirements](https://ethglobal.com/events/mumbai/prizes).
-Lower submission volume is a strategy hypothesis, not a verified count.
+**Trace the request. Inspect the cost. Preserve the evidence.**
 
-## Run locally
+AMPERE runs beside a blockchain node. It records bounded JSON-RPC exchanges,
+compares method latency, reads container resource counters, and signs portable
+incident records. Built in TypeScript with a local Next.js console.
 
-Requirements: Node.js 22.16+, npm, and Docker Desktop with its Linux engine running.
-The dashboard and node bind to loopback. Google Chrome is needed for browser tests.
+```text
+interfaces   Arkiv JSON-RPC / Docker stats / EIP-8141 sidecar
+evidence     wall-clock latency / rule verdicts / node resource snapshots
+integrity    canonical JSON → SHA-256 → Ed25519
+storage      local files / 1,000 retained observations / no hosted backend
+```
+
+> **Build status:** the local Arkiv flow is exercised: 24 entities written and
+> read back; a 20-request bounded benchmark completed. Ethereum submission code
+> is implemented; live admission awaits workshop-devnet funding. Public repository
+> publication and the final demo are still pending. [Evidence and limits](docs/VALIDATION.md)
+
+## Boot
+
+Requires **Node ≥22.16**, npm, and Docker with a running Linux engine.
+Tested on Windows PowerShell with Docker Desktop. Google Chrome is only required
+for browser tests. No public Arkiv funds are needed.
 
 ```sh
 npm ci
@@ -20,100 +42,143 @@ npm run collect
 npm run dev
 ```
 
-Open **http://127.0.0.1:3000**. In another terminal, use `npm run collect:watch`
-for periodic collection. The UI refreshes the saved recording every five seconds;
-the collector completes a sampling cycle, then waits ten seconds. It must be
-running for fresh measurements. The Example switch is explicitly synthetic.
-
-Configuration is optional: copy `.env.example` to `.env.local`. Arkiv endpoints
-must be literal loopback HTTP addresses. Container resource sampling expects the
-Compose container `ampere-arkiv-1`; override `ARKIV_CONTAINER` if needed.
-
-## Working Arkiv demo
-
-Stop the watch collector before running commands that write a recording.
+Open **http://127.0.0.1:3000**. In a second terminal:
 
 ```sh
-npm run arkiv:seed
-npm run arkiv:benchmark
 npm run collect:watch
 ```
 
-The seed command creates 24 entities, checks 24 creation events, and reads all 24
-back. It uses the pinned node's entity-registry ABI through viem. The published
-SDK 0.7 write API is incompatible with this node revision; see
-[the measured integration feedback](arkiv/friction.md).
+The collector samples, then waits ten seconds. The console refreshes the saved
+snapshot every five seconds. The console alone does not collect data. Optional
+settings are in [`.env.example`](.env.example).
 
-The benchmark performs ten samples for each of two ordinary equality lookups.
-It is sequential, limits pages to ten entities, uses a two-second request timeout,
-and stops on the first failure or latency over one second. User-supplied case files
-are limited to four cases, so a run can never exceed 40 query requests.
+<p align="center">
+  <img src="docs/assets/console.png" alt="AMPERE console with a request timeline, RPC log, evidence inspector and baseline comparison" width="100%" />
+  <br /><sub>Example mode: deliberately synthetic data, visibly labeled. No live incident or slow-query discovery is claimed by this preview.</sub>
+</p>
 
-Inputs and query-to-workload mappings stay in ignored `.ampere/*.private.json`
-and `.ampere/benchmark-cases.json`. Public observations use random workload IDs,
-not query text or query hashes. Do not share these private files in the public
-repository or demo. Share any discovered slow-query shape privately with Arkiv.
+## Instrumentation
 
-Default benchmarks read a moving chain head and record each returned block.
-`npm run arkiv:benchmark:fixed` requests one fixed block; it may stop
-with `-32006` on this node build. This is documented feedback, not an expensive
-query finding. A moving-head comparison can be affected by changing chain state.
+| Surface                    | What AMPERE records                                                       | Operator use                                                  |
+| :------------------------- | :------------------------------------------------------------------------ | :------------------------------------------------------------ |
+| RPC method counters        | Observed requests, failures, successful-call p50 / p95                    | Identify which monitored methods need investigation           |
+| Request timeline           | Duration, method, network, response bytes, outcome                        | Inspect a specific exchange instead of an aggregate alone     |
+| Node status                | Client, chain, block, peers, sync                                         | Distinguish node state from transport failures                |
+| Container telemetry        | CPU, memory, processes, block I/O, `/data` size                           | See resources unavailable to an external node directory       |
+| Capacity forecast          | Days until shared filesystem capacity is consumed at observed node growth | Alert below seven days; show unknown until sufficient history |
+| Private workload benchmark | Bounded samples with separate baselines and block metadata                | Reproduce a measurement without publishing query text         |
+| Admission evidence         | Sidecar rule verdicts and transaction lifecycle                           | Explain the experimental mempool's reported decision          |
+| Signed report              | Complete retained recording, digest, signature, public key                | Detect changes after export                                   |
 
-Node used: `ghcr.io/arkiv-network/arkiv-reth`, pinned in `compose.yaml` to digest
-`sha256:83d58d3d79c7d1a3e3b95cc94f2d9baa37cb2801d1cda6753727de46a8688a31`.
-Single-node `--dev`, chain 1337. Its client reports
-`reth/v2.7.0-d32fbaf/x86_64-unknown-linux-gnu`. This is an owned local development
-node, not the Arkiv public testnet. CPU/memory come from Docker stats; data size
-comes from `/data`; free capacity is shared by the Docker filesystem. Host-wide
-metrics are labeled separately. Forecasts require at least 60 seconds of growth
-history in one collector process and alert below seven estimated days.
+**Scope matters.** RPC counters cover AMPERE probes and benchmarks, not traffic
+from every client of the node. Latency includes network travel; it is not server
+CPU time. Container counters are aggregate. Disk capacity is shared with other
+writers, and its linear forecast needs at least 60 seconds of observed growth.
 
-The seed writer is the **public development account**
-`0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266`; its well-known key is intentionally
-used only on a loopback dev chain. Entity schema is in [arkiv/schema.md](arkiv/schema.md).
-Current seed keys, dataset ID and transaction hash are in `.ampere/seed.json`.
+## Protocol paths
 
-## Ethereum devnet submission
+### Arkiv / owned-node diagnostics
 
-The default gateway is `https://altmempoolgateway.forshtat.com/rpc`, chain **1337**.
-This is an experimental EIP-8141 devnet; Sepolia and mainnet cannot run this flow.
+Stop the watch collector before running another recording writer:
+
+```sh
+npm run arkiv:seed       # create 24 entities; require logs + read-back
+npm run arkiv:benchmark  # 2 benign workloads × 10 sequential samples
+npm run collect:watch    # resume node telemetry
+```
+
+| Node identity   | Value                                                                               |
+| :-------------- | :---------------------------------------------------------------------------------- |
+| Client          | `arkiv-reth --dev`, reports `reth/v2.7.0-d32fbaf`                                   |
+| RPC             | `http://127.0.0.1:8545`                                                             |
+| Chain           | `1337`, local development chain                                                     |
+| Image           | `ghcr.io/arkiv-network/arkiv-reth` pinned by digest in [compose.yaml](compose.yaml) |
+| Seed writer     | `0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266` — public development account           |
+| Write interface | `execute(Operation[])` at `0x4400000000000000000000000000000000000044`              |
+| Entity contract | [Schema, indexed fields, owner and expiry](arkiv/schema.md)                         |
+
+The seed writes through the pinned node ABI using viem; it verifies all 24 entities.
+The SDK/node mismatch that led to this choice is documented in
+[Arkiv feedback](arkiv/friction.md). Node and Ethereum devnet share chain ID 1337
+but are separate networks and endpoints.
+
+Benchmark queries run **only on an owned loopback node**. A run allows at most four
+workloads, ten samples each, page limits ≤10, concurrency 1, a 2s timeout, and stops
+on the first failure or latency >1s. Default reads follow the head; each sample
+records its returned block. `npm run arkiv:benchmark:fixed` exercises fixed-block
+reads and the documented retention failure path.
+
+**Disclosure boundary:** query text and workload mappings remain under ignored
+`.ampere/`. Reports expose opaque workload IDs, not query text or hashes. Any
+discovered slow-query shape goes privately to Arkiv through its booth process;
+never into this repository, the feedback document, screenshots, or a public demo.
+
+### Ethereum / frame-transaction admission
+
+```text
+chain guard → disposable devnet key → faucet / balance check
+           → sign [VERIFY, SENDER] → eth_sendFrameTransaction
+           → receipt → skandha_explorer_getTransaction → rule evidence
+```
 
 ```sh
 npm run ethereum:send
 npm run ethereum:inspect
 ```
 
-The sender checks chain ID, generates/reuses an ignored disposable key, requests
-faucet funds if needed, builds and signs a zero-value self-transfer with VERIFY
-and SENDER frames, submits `eth_sendFrameTransaction`, and checks its receipt.
-The inspector captures the sidecar's rule verdicts and lifecycle events using
-`skandha_explorer_getTransaction`. Both commands record measured RPC exchanges.
-Inspect another transaction with `npm run ethereum:inspect -- 0x<hash>`.
+Uses `@forshtat/hegota-support` and the workshop's experimental profile. The
+transaction is a zero-value self-transfer. The first milestone proves the normal
+submission path; it does not demonstrate an alt-only transaction shape or a new
+DoS vector. [Sender](scripts/send-frame.ts) · [Inspector](scripts/inspect-frame.ts)
 
-**Current dependency:** the gateway's faucet returned `The faucet is empty` on
-2026-11-06. The account awaiting devnet funding is
-`0x0c99FE76869e0e86E4d43A72cC244aA09f2B9910`. No admitted AMPERE frame transaction
-is claimed yet. Fund it on the workshop devnet, then rerun the two commands.
-Find it at [the explorer](https://explorer.altmempool.wtf/) by searching its hash.
+Gateway: `https://altmempoolgateway.forshtat.com/rpc`, workshop chain **1337**.
+The faucet returned `The faucet is empty` during the initial run. Funding is
+deferred; no admitted AMPERE transaction is claimed. The disposable sender is
+`0x0c99FE76869e0e86E4d43A72cC244aA09f2B9910`. After funding on that devnet,
+run the commands above and search the resulting hash in the
+[devnet explorer](https://explorer.altmempool.wtf/).
 
-## Reports and measurement semantics
+## Evidence format
 
-- Reports contain the complete retained recording (up to 1,000 requests), not
-  just the filtered dashboard view. Export uses the latest saved snapshot.
-- SHA-256 hashes canonical JSON with sorted object keys. Ed25519 signs the same
-  canonical bytes. The signing key stays in `.ampere/report-key.pem`.
-- Use Reports → Choose report, or `npm run verify -- path/to/report.json`.
-- An embedded public key verifies integrity, not trusted operator identity.
-  No blockchain anchoring or trusted timestamp is implemented.
-- Latency is client wall-clock time, not isolated server CPU consumption.
-  RPC errors, timeouts and transport failures are different outcomes.
-- Method comparisons use the first five vs. last five successful samples within
-  the retained window; ten are required. Query workloads have separate baselines.
-  A 3× change is a heuristic to investigate, not proof of an attack.
-- Node state and resource snapshots are point-in-time observations. This MVP is
-  a local tool, not an authenticated multi-user hosted service.
+```text
+Observation {
+  network, method, source, recordedAt,
+  durationMs, responseBytes, outcome,
+  rpcCode?, workloadId?, blockNumber?
+}
 
-## Validation
+SignedReport {
+  payload: { schema, createdAt, recording, limitations },
+  sha256, signature, publicKey
+}
+```
+
+Export from **Reports**, then verify in the console or independently:
+
+```sh
+npm run verify -- path/to/report.json
+```
+
+The signature covers canonical payload bytes. Export includes the latest complete
+saved snapshot, not just filtered rows. An embedded public key establishes
+integrity and key possession, not a trusted identity, true measurements, or a
+blockchain timestamp. [Implementation](src/lib/report.ts)
+
+## Source map
+
+```text
+src/lib/rpc.ts          bounded, measured RPC; params never recorded
+src/lib/collector.ts    chain reads + host sampling
+src/lib/container.ts    Docker counters + node data growth
+src/lib/analysis.ts     method distributions / baseline / capacity alert
+src/lib/admission.ts    selected rule and lifecycle metadata
+src/lib/report.ts       canonicalization / hashing / signing / verification
+scripts/               seed, benchmark, collect, send, inspect, verify
+src/components/        recorder console + diagnostics
+arkiv/                 four judging criteria + entity schema
+```
+
+## Validate
 
 ```sh
 npm test
@@ -122,51 +187,50 @@ npm run test:e2e
 npm run build
 ```
 
-Core tests cover integrity/tampering, baseline separation, local-target rules,
-timeouts, response bounds, malformed RPC responses, and admission redaction.
-Browser tests exercise inspection, filtering, export, verification, tampering,
-and mobile overflow. Live Arkiv seeding and benchmarking were also exercised.
-See [docs/VALIDATION.md](docs/VALIDATION.md) for the initial evidence and gaps.
+Tests cover real loopback HTTP failures and timeouts, response bounds, query
+baseline isolation, signature tampering, capacity alerts, method counters, and
+desktop/mobile console flows. [Validation record](docs/VALIDATION.md)
 
-## Architecture
+## Submission map
 
-```mermaid
-flowchart LR
-  A[Owned Arkiv node] --> C[Bounded RPC collector]
-  E[Ethereum devnet gateway] --> C
-  D[Docker node metrics] --> S[Local recording]
-  C --> S
-  S --> U[Next.js operator console]
-  S --> R[Canonical JSON + Ed25519 report]
-  R --> V[Independent verifier]
-```
+**Arkiv Node tooling** is the primary operator-tooling target. **EF Frame
+Transaction Alternative Mempool** is the admission-tooling target.
 
-No raw query parameters or private keys enter a report. There is no hosted
-database, analytics script, external font request, or automatic report upload.
-Upstream sources are listed in [docs/SOURCES.md](docs/SOURCES.md).
+| Review document                            | Contents                                                   |
+| :----------------------------------------- | :--------------------------------------------------------- |
+| [Track requirements](docs/REQUIREMENTS.md) | Requirement → implementation → evidence → outstanding work |
+| [Arkiv feedback](arkiv/friction.md)        | Expected / observed behavior and reproduction              |
+| [Real use](arkiv/real-use.md)              | Operator decisions supported by the measurements           |
+| [What's new](arkiv/whats-new.md)           | Contribution beyond existing node tools                    |
+| [Easy to run](arkiv/easy-to-run.md)        | Setup, prerequisites and failure recovery                  |
+| [Demo sequence](docs/DEMO.md)              | Live demonstration and honest fallback paths               |
+| [Operator runbook](docs/RUNBOOK.md)        | Detailed setup, configuration and troubleshooting          |
 
-## Troubleshooting
+Only one Arkiv track prize can be won per team. We are targeting Node tooling;
+there is no claimed Swarm bonus integration. Prize eligibility remains the
+organizers' decision. [Official tracks](https://ethglobal.com/events/mumbai/prizes)
 
-- Node unavailable: run `docker compose ps` and `docker compose logs --tail 30`.
-- Empty dashboard: run `npm run collect`; check `.ampere/recording.json`.
-- Writer lock: stop the other recording command. After a confirmed crash, remove
-  only `.ampere/writer.lock` before retrying. One writer is supported at a time.
-- Ethereum faucet unavailable: obtain workshop devnet funds from EF mentors.
-- `-32006` in a fixed-block benchmark: see the retention issue in the feedback.
-- Missing container metrics: confirm Docker is running and `ARKIV_CONTAINER`
-  matches the node. Unavailable metrics are not replaced with host values.
-- Stop the node without deleting data: `docker compose stop`.
+## Failure recovery
 
-## Remaining work
+| Symptom                  | Next step                                                                         |
+| :----------------------- | :-------------------------------------------------------------------------------- |
+| Node unavailable         | `docker compose ps`; `docker compose logs --tail 30`                              |
+| Stale recording          | Start `npm run collect:watch`                                                     |
+| Writer lock              | Stop the other writer; after a confirmed crash, remove only `.ampere/writer.lock` |
+| Historical read `-32006` | See [retention feedback](arkiv/friction.md); moving-head mode is explicit         |
+| No container counters    | Check Docker and `ARKIV_CONTAINER`                                                |
+| Empty Ethereum faucet    | Obtain workshop devnet funds; other testnets cannot fund this flow                |
 
-Funding and live Ethereum admission verification; per-frame gas and local ethrex
-trace profiling; deeper controlled workload analysis; third-party operator
-testing; public repository publication and a final recorded submission demo.
-Hedera and Swarm are deferred. A polished UI alone does not complete either prize.
+Stop the node without deleting data: `docker compose stop`.
 
-## AI disclosure
+## License & provenance
 
-Developed with OpenAI Codex for research, implementation, testing and documentation.
-The team must review the code and explain the measurements and trade-offs.
-MIT licensed. This repository was initialized empty for the event.
+[MIT](LICENSE). AMPERE was started in an empty repository for this event; upstream
+clients and encoding libraries are attributed in [SOURCES.md](docs/SOURCES.md).
+The initial Git history records incremental implementation rather than a final
+bulk upload.
 
+**AI disclosure:** OpenAI Codex assisted with research, implementation, tests and
+documentation. The team remains responsible for review and for explaining the
+code, measurements and trade-offs. No external operator study, discovered
+resource-exhaustion vulnerability, or funded Ethereum admission is claimed yet.

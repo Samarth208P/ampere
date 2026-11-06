@@ -1,6 +1,6 @@
 # Easy to run
 
-Use the README quick start: `npm ci`, `docker compose up -d`, `npm run collect`,
+Use the [README quick start](../README.md#boot): `npm ci`, `docker compose up -d`, `npm run collect`,
 then `npm run dev`. Seed and benchmark commands are separate and bounded.
 
 Requirements: Node 22.16+, npm, Docker with a Linux engine. The node image is
@@ -14,3 +14,10 @@ The independent Ethereum demo needs workshop devnet funds.
 `docker compose stop` stops the node and retains data. The README covers unavailable
 nodes, stale recordings, writer locks, faucet funding, and historical-read errors.
 Ordinary query examples are generated privately by `arkiv:seed`.
+
+See [the operator runbook](../docs/RUNBOOK.md) for configuration and recovery,
+[the demo sequence](../docs/DEMO.md) for expected screens, and
+[the pinned Compose definition](../compose.yaml) for the exact node image.
+No account, hosted database or API key is required for the local Arkiv flow.
+First-run duration depends on image/package download speed; installation has
+not yet been timed on a second user's clean machine.

@@ -13,6 +13,14 @@ its privacy boundary, rather than a collection of stock monitoring panels.
 - Ed25519 verification detects modification after export. It makes no claim of
   independently trusted measurement or blockchain timestamping.
 
-Implementation: `src/lib/rpc.ts`, `analysis.ts`, `report.ts`, `container.ts`, and
-`scripts/benchmark-arkiv.ts`. An illustrative latency increase is available only
+Implementation: [RPC measurements](../src/lib/rpc.ts),
+[baseline separation](../src/lib/analysis.ts), [report integrity](../src/lib/report.ts),
+[container context](../src/lib/container.ts), and
+[bounded benchmark](../scripts/benchmark-arkiv.ts). An illustrative latency increase is available only
 under Example mode; it is not a live performance finding.
+
+Built-in RPC methods provide individual answers, and Docker provides resource
+counters. AMPERE adds a retained request-level record, consistent error semantics,
+comparison windows, private workload identity, and a report that can be verified
+after leaving the UI. We do not claim to invent the underlying counters or
+percentiles. The [demo](../docs/DEMO.md) exercises that complete workflow.

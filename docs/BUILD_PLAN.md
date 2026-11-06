@@ -29,10 +29,10 @@ not the truth of its measurements or a trusted operator identity.
 
 ## Visual plan
 
-An instrument console: a quiet pale blue workspace (#edf2f7), deep navy navigation
-(#152b42), white recording surface (#ffffff), blue selection (#2457d6), amber
-attention (#a15c16), and teal success (#167563). System humanist sans for interface,
-Consolas for hashes and measurements. Left-aligned content, generous title area,
+An instrument console, revised to the requested terminal aesthetic: graphite
+workspace (#101619), raised dark surfaces (#172024), pale text (#dde6df), sage
+selection (#adcbb4), amber attention (#e8bc83), and teal traces (#83b8a8).
+Consolas / system monospace for interface, hashes and measurements. Left-aligned content, generous title area,
 one prominent request timeline with an adjacent evidence inspector. Borders group
 observations; no decorative metric-card grid. Mobile stacks the inspector below
 the request list. The recorder, not a marketing hero, is the visual focus.
