@@ -66,7 +66,7 @@ await withWriter(async () => {
   let verified = false;
   for (let i = 0; i < 10; i++) {
     await setTimeout(1000);
-    const response = await measuredRpc<{ data: unknown[] }>(
+    const response = await measuredRpc<{ data: { key?: string }[] }>(
       url,
       "arkiv",
       "arkiv_query",
@@ -75,7 +75,16 @@ await withWriter(async () => {
     if (
       response.value &&
       Array.isArray(response.value.data) &&
-      response.value.data.length === 24
+      response.value.data.length === 24 &&
+      new Set(response.value.data.map((entity) => entity?.key?.toLowerCase()))
+        .size === 24 &&
+      response.value.data.every(
+        (entity) =>
+          typeof entity?.key === "string" &&
+          createdEntities.some(
+            (key) => key.toLowerCase() === entity.key!.toLowerCase(),
+          ),
+      )
     ) {
       verified = true;
       break;

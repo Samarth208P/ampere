@@ -3,6 +3,12 @@
 Use the [README quick start](../README.md#boot): `npm ci`, `docker compose up -d`, `npm run collect`,
 then `npm run dev`. Seed and benchmark commands are separate and bounded.
 
+Run `npm run doctor` after starting Docker for bounded, read-only checks of the
+engine, owned RPC, saved data and lock. `npm run check` runs the type check,
+regression tests and production build. `npm start` serves that build locally.
+Writer locks include PID/start time; failures release the lock even when reading
+or saving a recording fails. A hard process kill still needs a manual lock check.
+
 Requirements: Node 22.16+, npm, Docker with a Linux engine. The node image is
 pinned by digest. Tested from Windows PowerShell with Docker Desktop. Linux/macOS
 host behavior has not yet been exercised. Browser tests use installed Chrome.

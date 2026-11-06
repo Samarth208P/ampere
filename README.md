@@ -38,6 +38,7 @@ for browser tests. No public Arkiv funds are needed.
 ```sh
 npm ci
 docker compose up -d
+npm run doctor
 npm run collect
 npm run dev
 ```
@@ -51,6 +52,10 @@ npm run collect:watch
 The collector samples, then waits ten seconds. The console refreshes the saved
 snapshot every five seconds. The console alone does not collect data. Optional
 settings are in [`.env.example`](.env.example).
+
+`doctor` checks Docker, the owned node, the devnet connection, saved recording and
+writer lock without sending transactions or requesting funds. For a production
+console, run `npm run build` followed by `npm start` instead of `npm run dev`.
 
 <p align="center">
   <img src="docs/assets/console.png" alt="AMPERE console with a request timeline, RPC log, evidence inspector and baseline comparison" width="100%" />
@@ -116,7 +121,7 @@ never into this repository, the feedback document, screenshots, or a public demo
 ### Ethereum / frame-transaction admission
 
 ```text
-chain guard → disposable devnet key → faucet / balance check
+chain guard → disposable devnet key → balance check
            → sign [VERIFY, SENDER] → eth_sendFrameTransaction
            → receipt → skandha_explorer_getTransaction → rule evidence
 ```
@@ -125,6 +130,13 @@ chain guard → disposable devnet key → faucet / balance check
 npm run ethereum:send
 npm run ethereum:inspect
 ```
+
+Funding is explicit: `ethereum:send` stops with the account address if its balance
+is insufficient. To opt into a faucet request, use `npm run ethereum:send:faucet`.
+The sender saves the computed hash before submission, including rejected or
+ambiguous attempts. `ethereum:inspect` refreshes both receipt and admission
+history; expired sidecar history does not discard a mined receipt. An unresolved
+submission must be inspected before another send to avoid accidental duplicates.
 
 Uses `@forshtat/hegota-support` and the workshop's experimental profile. The
 transaction is a zero-value self-transfer. The first milestone proves the normal
@@ -173,7 +185,9 @@ src/lib/container.ts    Docker counters + node data growth
 src/lib/analysis.ts     method distributions / baseline / capacity alert
 src/lib/admission.ts    selected rule and lifecycle metadata
 src/lib/report.ts       canonicalization / hashing / signing / verification
-scripts/               seed, benchmark, collect, send, inspect, verify
+src/lib/recording-schema.ts  runtime validation and allowed evidence fields
+src/lib/writer.ts       exclusive writer / failure cleanup
+scripts/               doctor, seed, benchmark, collect, send, inspect, verify
 src/components/        recorder console + diagnostics
 arkiv/                 four judging criteria + entity schema
 ```
@@ -181,15 +195,20 @@ arkiv/                 four judging criteria + entity schema
 ## Validate
 
 ```sh
-npm test
-npm run typecheck
+npm run check          # typecheck + 16 tests + production build
 npm run test:e2e
-npm run build
 ```
 
 Tests cover real loopback HTTP failures and timeouts, response bounds, query
 baseline isolation, signature tampering, capacity alerts, method counters, and
-desktop/mobile console flows. [Validation record](docs/VALIDATION.md)
+desktop/mobile console flows. Six browser/API tests also cover paused polling,
+stale node state, repeated source selection, malformed data and bounded uploads.
+The Ethereum CLI tests use a local mock, not funded devnet transactions.
+[Validation record](docs/VALIDATION.md)
+
+[CI](.github/workflows/check.yml) runs the checks and production browser tests on
+push/PR once the repository is published. Locally, browser tests use Chrome;
+CI installs Playwright Chromium. The workflow has not run on GitHub yet.
 
 ## Submission map
 
@@ -220,6 +239,8 @@ organizers' decision. [Official tracks](https://ethglobal.com/events/mumbai/priz
 | Historical read `-32006` | See [retention feedback](arkiv/friction.md); moving-head mode is explicit         |
 | No container counters    | Check Docker and `ARKIV_CONTAINER`                                                |
 | Empty Ethereum faucet    | Obtain workshop devnet funds; other testnets cannot fund this flow                |
+| Corrupt saved recording  | Run `npm run doctor`; preserve the invalid file and restore a valid backup        |
+| Transaction unresolved   | Run `npm run ethereum:inspect`; receipt and admission reads are independent       |
 
 Stop the node without deleting data: `docker compose stop`.
 

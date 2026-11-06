@@ -6,7 +6,7 @@ discovered slow-query shape, even if it is only visible in a terminal.
 
 ## Before the demo
 
-1. `docker compose up -d` and `npm run collect`.
+1. `docker compose up -d`, `npm run doctor` and `npm run collect`.
 2. With no watch writer running: `npm run arkiv:seed`, then `npm run arkiv:benchmark`.
 3. `npm run collect:watch` in one terminal; `npm run dev` in another.
 4. Open `http://127.0.0.1:3000`, **Live**. Leave the collector running for at least
@@ -38,6 +38,10 @@ https://explorer.altmempool.wtf/.
 If funding is still unavailable, show the submission code and state that live
 submission has not been verified. The track allows submission code as evidence;
 that is not the same as a working, demonstrated admission flow.
+
+The automated CLI integration test signs real SDK envelopes against a local RPC
+mock and exercises inclusion, rejection, disconnects and receipt recovery. It is
+software validation, never evidence of real devnet admission.
 
 ## Finish
 
