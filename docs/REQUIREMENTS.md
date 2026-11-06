@@ -79,11 +79,30 @@ profiling is future work, not required functionality silently treated as done.
 
 ## Submission gates still open
 
-- Publish this repository publicly and verify the README/assets/license from a
-  logged-out browser. No destination remote is configured yet.
+- Publication is deferred by the owner. When resumed, publish this repository
+  publicly and verify the README/assets/license from a logged-out browser.
+  No destination remote is configured yet.
 - Fund and run the EF transaction when available, then capture its actual
   admission and explorer evidence. Do not replace that with Example mode.
 - Deliver the live Arkiv demonstration; capture a final video if required by
   the event submission form. Keep discovered query shapes off screen.
 - Team confirms from-scratch timing/participation eligibility and can explain
   the code above. Only the organizers determine eligibility and awards.
+
+## Completion audit — 2026-11-06
+
+The local core and cloud relay pass 18 automated tests, six production browser/API tests,
+type checking and a production build. Real Arkiv seeding and benchmarking were
+rerun, and a seven-sample live collector run produced host/container telemetry
+and a capacity forecast after its warm-up window. See [validation](VALIDATION.md).
+
+The Ethereum CLI is integration-tested against an isolated mock for SDK signing,
+submission, rejection, disconnection and receipt recovery. These tests do not
+replace the funded devnet demonstration. Admission hashes survive failed sends;
+no private calldata is retained. The added CI workflow is ready but has not run
+on GitHub while publication is deferred.
+
+Netlify hosting uses signed outbound collector snapshots; the collector still
+runs next to the owned Arkiv node. The Linux offline Netlify build passed through
+function packaging. [Deployment instructions](NETLIFY.md) cover runtime settings
+and the remaining hosted smoke test.

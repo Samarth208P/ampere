@@ -64,6 +64,11 @@ console, run `npm run build` followed by `npm start` instead of `npm run dev`.
 
 ## Instrumentation
 
+**Hosting on Netlify:** keep Docker and the collector on your machine; publish
+signed snapshots to the hosted console over HTTPS. The integration is implemented.
+Follow the [Netlify deployment guide](docs/NETLIFY.md) for the five runtime variables
+and collector settings. No public node port or inbound tunnel is needed.
+
 | Surface                    | What AMPERE records                                                       | Operator use                                                  |
 | :------------------------- | :------------------------------------------------------------------------ | :------------------------------------------------------------ |
 | RPC method counters        | Observed requests, failures, successful-call p50 / p95                    | Identify which monitored methods need investigation           |
@@ -195,7 +200,7 @@ arkiv/                 four judging criteria + entity schema
 ## Validate
 
 ```sh
-npm run check          # typecheck + 16 tests + production build
+npm run check          # typecheck + tests + production build/privacy check
 npm run test:e2e
 ```
 
@@ -209,6 +214,9 @@ The Ethereum CLI tests use a local mock, not funded devnet transactions.
 [CI](.github/workflows/check.yml) runs the checks and production browser tests on
 push/PR once the repository is published. Locally, browser tests use Chrome;
 CI installs Playwright Chromium. The workflow has not run on GitHub yet.
+
+Netlify transport tests use the official Blobs SDK's local server. Actual hosted
+deployment is still pending; local tests are not a claim that a public site exists.
 
 ## Submission map
 

@@ -20,7 +20,12 @@ Source: https://ethglobal.com/events/mumbai/prizes
 2. Live Arkiv health collector and Ethereum frame transaction submission.
 3. Operator console: recorded requests, latency comparison, report export.
 4. Node resource telemetry, disk forecast and private query benchmarking.
-5. Local admission-policy experiments and demo recording.
+5. Submission recovery, production validation and demo runbook.
+
+Core implementation is complete and exercised locally. The funded Ethereum
+demonstration and public publication remain owner-deferred. Local ethrex policy
+experiments and deeper per-frame cost profiling are future extensions; mock CLI
+tests do not count as real admission experiments.
 
 Never represent fixtures as live measurements, request latency as node CPU cost,
 or an RPC timeout as a protocol rejection. Raw queries stay private. No slow-query
