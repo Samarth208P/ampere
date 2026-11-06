@@ -1,22 +1,19 @@
 import { setTimeout } from "node:timers/promises";
-import { open, unlink, mkdir } from "node:fs/promises";
+import { withWriter } from "../src/lib/writer";
 import { collect } from "../src/lib/collector";
 import { readRecording, saveRecording } from "../src/lib/store";
 
-await mkdir(".ampere", { recursive: true });
-const lock = await open(".ampere/writer.lock", "wx").catch(() => {
-  throw new Error(
-    "Another writer is active. Stop it first; after a crash remove .ampere/writer.lock.",
-  );
-});
+const controller = new AbortController();
 let stopping = false;
 process.on("SIGINT", () => {
   stopping = true;
+  controller.abort();
 });
 process.on("SIGTERM", () => {
   stopping = true;
+  controller.abort();
 });
-try {
+await withWriter(async () => {
   do {
     const recording = await collect(await readRecording());
     await saveRecording(recording);
@@ -24,9 +21,10 @@ try {
       `${new Date().toISOString()} ${recording.nodes.map((n) => `${n.network}: ${n.connected ? "connected" : "unreachable"}`).join(" | ")} | ${recording.observations.length} recorded requests`,
     );
     if (!process.argv.includes("--watch") || stopping) break;
-    await setTimeout(10_000);
+    await setTimeout(10_000, undefined, { signal: controller.signal }).catch(
+      (error) => {
+        if (error.name !== "AbortError") throw error;
+      },
+    );
   } while (!stopping);
-} finally {
-  await lock.close();
-  await unlink(".ampere/writer.lock");
-}
+});

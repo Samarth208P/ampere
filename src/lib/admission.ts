@@ -5,7 +5,8 @@ export function parseAdmission(
   value: unknown,
   hash: string,
 ): NonNullable<Recording["admission"]> {
-  if (!value || typeof value !== "object")
+  if (value === null) value = {};
+  if (!value || typeof value !== "object" || Array.isArray(value))
     throw new Error("Invalid explorer detail");
   const detail = value as Record<string, unknown>;
   const admission = detail.admission as {
@@ -13,7 +14,7 @@ export function parseAdmission(
     checks?: unknown;
   } | null;
   const checks = Array.isArray(admission?.checks)
-    ? admission.checks.flatMap((check: unknown) => {
+    ? admission.checks.slice(0, 200).flatMap((check: unknown) => {
         if (!check || typeof check !== "object") return [];
         const c = check as Record<string, unknown>;
         return typeof c.rule === "string" && typeof c.verdict === "string"
@@ -22,10 +23,13 @@ export function parseAdmission(
       })
     : [];
   const events = Array.isArray(detail.events)
-    ? detail.events.flatMap((item: unknown) => {
+    ? detail.events.slice(-200).flatMap((item: unknown) => {
         if (!item || typeof item !== "object") return [];
         const e = item as Record<string, unknown>;
-        return typeof e.kind === "string" && typeof e.at === "number"
+        return typeof e.kind === "string" &&
+          typeof e.at === "number" &&
+          Number.isFinite(e.at) &&
+          e.at >= 0
           ? [
               {
                 kind: e.kind.slice(0, 50),

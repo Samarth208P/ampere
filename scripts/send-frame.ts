@@ -1,4 +1,5 @@
-import { mkdir, readFile, writeFile, open, unlink } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
+import { withRecordingWriter } from "../src/lib/writer";
 import { setTimeout } from "node:timers/promises";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import type { Hex } from "viem";
@@ -12,32 +13,30 @@ import {
 import { toWire } from "@forshtat/hegota-support/rpc";
 import { measuredRpc, RpcFailure } from "../src/lib/rpc";
 import { ethereumUrl } from "../src/lib/collector";
-import { readRecording, saveRecording } from "../src/lib/store";
+import { saveRecording } from "../src/lib/store";
 
 // One harmless, zero-value self transfer. Adapted from the MIT-licensed workshop.
-await mkdir(".ampere", { recursive: true });
-const lock = await open(".ampere/writer.lock", "wx").catch(() => {
-  throw new Error("Stop the collector before submitting a transaction.");
-});
-const recording = await readRecording();
-const call = async <T>(method: string, params: unknown[] = []): Promise<T> => {
-  try {
-    const result = await measuredRpc<T>(
-      ethereumUrl(),
-      "ethereum",
-      method,
-      params,
-      15000,
-    );
-    recording.observations.push(result.observation);
-    return result.value;
-  } catch (error) {
-    if (error instanceof RpcFailure)
-      recording.observations.push(error.observation);
-    throw error;
-  }
-};
-try {
+await withRecordingWriter(async (recording) => {
+  const call = async <T>(
+    method: string,
+    params: unknown[] = [],
+  ): Promise<T> => {
+    try {
+      const result = await measuredRpc<T>(
+        ethereumUrl(),
+        "ethereum",
+        method,
+        params,
+        15000,
+      );
+      recording.observations.push(result.observation);
+      return result.value;
+    } catch (error) {
+      if (error instanceof RpcFailure)
+        recording.observations.push(error.observation);
+      throw error;
+    }
+  };
   const chainId = Number(await call<string>("eth_chainId"));
   if (chainId !== 1337)
     throw new Error(
@@ -131,8 +130,4 @@ try {
   console.log(
     `${recording.transaction.status}: ${hash}\nExplorer: ${recording.transaction.explorer} (search the hash)`,
   );
-} finally {
-  await saveRecording(recording);
-  await lock.close();
-  await unlink(".ampere/writer.lock");
-}
+});

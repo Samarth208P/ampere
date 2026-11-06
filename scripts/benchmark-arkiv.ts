@@ -1,8 +1,8 @@
-import { readFile, open, unlink, mkdir, writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
+import { withRecordingWriter } from "../src/lib/writer";
 import { randomUUID } from "node:crypto";
 import { setTimeout } from "node:timers/promises";
 import { assertLocalEndpoint, measuredRpc, RpcFailure } from "../src/lib/rpc";
-import { readRecording, saveRecording } from "../src/lib/store";
 import { containerResources } from "../src/lib/container";
 
 const url = assertLocalEndpoint(
@@ -21,7 +21,9 @@ if (
   cases.length > 4 ||
   cases.some(
     (c) =>
+      !c ||
       typeof c.query !== "string" ||
+      c.query.trim().length === 0 ||
       c.query.length > 2000 ||
       !Number.isInteger(c.limit) ||
       c.limit < 1 ||
@@ -31,74 +33,78 @@ if (
   throw new Error(
     "Use 1–4 cases with query strings ≤2000 chars and limits 1–10.",
   );
-await mkdir(".ampere", { recursive: true });
-const lock = await open(".ampere/writer.lock", "wx").catch(() => {
-  throw new Error("Stop the collector before benchmarking.");
-});
-const recording = await readRecording();
-const runId = randomUUID();
-let stoppedEarly = false;
-let samples = 0;
-try {
-  const block = (await measuredRpc<string>(url, "arkiv", "eth_blockNumber"))
-    .value;
-  // Sequential, capped at 40 requests. Retain the returned block for each sample.
-  const privateMap = cases.map((value) => ({ id: randomUUID(), ...value }));
-  await writeFile(
-    `.ampere/benchmark-${runId}.private.json`,
-    JSON.stringify({ block, cases: privateMap }, null, 2),
-  );
-  outer: for (const item of privateMap) {
-    for (let i = 0; i < 10; i++) {
-      try {
-        const result = await measuredRpc<{ blockNumber?: string }>(
-          url,
-          "arkiv",
-          "arkiv_query",
-          [
-            item.query,
-            { limit: item.limit, atBlock: fixedBlock ? block : "latest" },
-          ],
-          2000,
-        );
-        result.observation.workloadId = item.id;
-        if (typeof result.value.blockNumber === "string")
-          result.observation.blockNumber = result.value.blockNumber;
-        result.observation.summary = `Owned-node benchmark; query retained privately. ${fixedBlock ? "Fixed block" : "Moving chain head; underlying state can change"}, concurrency 1, page limit ≤10.`;
-        recording.observations.push(result.observation);
-        samples++;
-        if (result.observation.durationMs > 1000) {
-          stoppedEarly = true;
-          break outer;
-        }
-      } catch (error) {
-        if (error instanceof RpcFailure) {
-          error.observation.workloadId = item.id;
-          recording.observations.push(error.observation);
+await withRecordingWriter(async (recording) => {
+  const runId = randomUUID();
+  let stoppedEarly = false;
+  let samples = 0;
+  try {
+    const head = await measuredRpc<string>(url, "arkiv", "eth_blockNumber");
+    recording.observations.push(head.observation);
+    const block = head.value;
+    if (typeof block !== "string" || !/^0x[\da-f]+$/i.test(block))
+      throw new Error("Invalid block number from owned node.");
+    // Sequential, capped at 40 requests. Retain the returned block for each sample.
+    const privateMap = cases.map((value) => ({ id: randomUUID(), ...value }));
+    await writeFile(
+      `.ampere/benchmark-${runId}.private.json`,
+      JSON.stringify({ block, cases: privateMap }, null, 2),
+    );
+    outer: for (const item of privateMap) {
+      for (let i = 0; i < 10; i++) {
+        try {
+          const result = await measuredRpc<{ blockNumber?: string }>(
+            url,
+            "arkiv",
+            "arkiv_query",
+            [
+              item.query,
+              { limit: item.limit, atBlock: fixedBlock ? block : "latest" },
+            ],
+            2000,
+          );
+          result.observation.workloadId = item.id;
+          if (
+            result.value &&
+            typeof result.value.blockNumber === "string" &&
+            /^0x[\da-f]+$/i.test(result.value.blockNumber)
+          )
+            result.observation.blockNumber = result.value.blockNumber;
+          result.observation.summary = `Owned-node benchmark; query retained privately. ${fixedBlock ? "Fixed block" : "Moving chain head; underlying state can change"}, concurrency 1, page limit ≤10.`;
+          recording.observations.push(result.observation);
           samples++;
-          stoppedEarly = true;
-          break outer;
+          if (result.observation.durationMs > 1000) {
+            stoppedEarly = true;
+            break outer;
+          }
+        } catch (error) {
+          if (error instanceof RpcFailure) {
+            error.observation.workloadId = item.id;
+            recording.observations.push(error.observation);
+            samples++;
+            stoppedEarly = true;
+            break outer;
+          }
+          throw error;
         }
-        throw error;
+        await setTimeout(200);
       }
-      await setTimeout(200);
     }
+    recording.benchmark = {
+      runId,
+      samples,
+      cases: cases.length,
+      block,
+      blockPolicy: fixedBlock ? "fixed" : "moving-head",
+      completedAt: new Date().toISOString(),
+      stoppedEarly,
+    };
+    recording.container = await containerResources();
+    console.log(
+      `Benchmark ${runId}: ${samples} requests, ${stoppedEarly ? "stopped by latency/error guard" : "completed"}. Query shapes were not published.`,
+    );
+  } catch (error) {
+    if (error instanceof RpcFailure)
+      recording.observations.push(error.observation);
+    throw error;
   }
-  recording.benchmark = {
-    runId,
-    samples,
-    cases: cases.length,
-    block,
-    blockPolicy: fixedBlock ? "fixed" : "moving-head",
-    completedAt: new Date().toISOString(),
-    stoppedEarly,
-  };
-  recording.container = await containerResources();
-  console.log(
-    `Benchmark ${runId}: ${samples} requests, ${stoppedEarly ? "stopped by latency/error guard" : "completed"}. Query shapes were not published.`,
-  );
-} finally {
-  await saveRecording(recording);
-  await lock.close();
-  await unlink(".ampere/writer.lock");
-}
+});

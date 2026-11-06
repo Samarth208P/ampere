@@ -8,6 +8,7 @@ import {
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { Recording } from "./types";
+import { assertRecording, isRecording } from "./recording-schema";
 
 export function canonical(value: unknown): string {
   if (value === null || typeof value === "boolean" || typeof value === "string")
@@ -42,6 +43,7 @@ export function makeReport(
   recording: Recording,
   privateKey: string,
 ): SignedReport {
+  assertRecording(recording);
   // JSON normalization removes absent optional fields, before hashing or signing.
   const payload: SignedReport["payload"] = JSON.parse(
     JSON.stringify({
@@ -67,9 +69,20 @@ export function makeReport(
   };
 }
 
-export function verifyReport(report: SignedReport): boolean {
+export function verifyReport(value: unknown): boolean {
   try {
-    if (report.payload.schema !== "ampere.report.v1") return false;
+    const report = value as SignedReport;
+    if (
+      report.payload.schema !== "ampere.report.v1" ||
+      !isRecording(report.payload.recording) ||
+      !Number.isFinite(Date.parse(report.payload.createdAt)) ||
+      !Array.isArray(report.payload.limitations) ||
+      !report.payload.limitations.every((v) => typeof v === "string") ||
+      typeof report.signature !== "string" ||
+      !/^[A-Za-z0-9+/]{86}==$/.test(report.signature) ||
+      createPublicKey(report.publicKey).asymmetricKeyType !== "ed25519"
+    )
+      return false;
     const bytes = Buffer.from(canonical(report.payload));
     return (
       createHash("sha256").update(bytes).digest("hex") === report.sha256 &&

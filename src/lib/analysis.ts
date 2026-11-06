@@ -59,6 +59,15 @@ export function diskForecast(
   previous: { at: number; free: number },
   current: { at: number; free: number },
 ): number | null {
+  if (
+    ![previous.at, previous.free, current.at, current.free].every(
+      Number.isFinite,
+    ) ||
+    previous.free < 0 ||
+    current.free < 0
+  )
+    return null;
+  if (current.free === 0) return 0;
   const elapsed = current.at - previous.at;
   const used = previous.free - current.free;
   if (elapsed < 60_000 || used <= 0 || current.free < 0) return null;
