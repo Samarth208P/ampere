@@ -3,8 +3,9 @@ import { readFile } from "node:fs/promises";
 
 test("report endpoints reject foreign origins, malformed JSON and oversized uploads", async ({
   request,
+  baseURL,
 }) => {
-  const headers = { origin: "http://127.0.0.1:3000" };
+  const headers = { origin: new URL(baseURL!).origin };
   expect(
     (
       await request.post("/api/report?mode=fixture", {
@@ -47,13 +48,14 @@ test("pause stops polling and manual refresh still reads the recording", async (
   await page.goto("/");
   await expect(page.locator("tbody tr")).toHaveCount(36);
   await page.getByRole("button", { name: "Pause view updates" }).click();
+  const readsAtPause = reads;
   await page.clock.fastForward(15000);
-  expect(reads).toBe(1);
+  expect(reads).toBe(readsAtPause);
   await page.getByRole("button", { name: "Refresh recording" }).click();
-  await expect.poll(() => reads).toBe(2);
+  await expect.poll(() => reads).toBe(readsAtPause + 1);
   await page.getByRole("button", { name: "Resume view updates" }).click();
   await page.clock.fastForward(6000);
-  await expect.poll(() => reads).toBe(3);
+  await expect.poll(() => reads).toBe(readsAtPause + 2);
 });
 
 test("inspect examples, filter requests, export and verify a signed report", async ({
@@ -70,6 +72,12 @@ test("inspect examples, filter requests, export and verify a signed report", asy
   await expect(page.locator("tbody tr")).toHaveCount(36);
   await page.getByRole("button", { name: "Example", exact: true }).click();
   await expect(page.locator("tbody tr")).toHaveCount(36);
+  await expect(page.locator(".inspector")).toHaveCount(0);
+  await expect(page.locator(".comparison-list")).not.toBeVisible();
+  await page.locator(".comparison-toggle").focus();
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".comparison-list")).toBeVisible();
+  await page.keyboard.press("Enter");
   await page.getByRole("button", { name: "Arkiv", exact: true }).click();
   await expect(page.locator("tbody tr")).toHaveCount(24);
   await page
@@ -78,6 +86,15 @@ test("inspect examples, filter requests, export and verify a signed report", asy
   await expect(page.locator(".inspector-method")).toHaveText(
     "arkiv_getEntityCount",
   );
+  await expect(page.locator(".inspector")).toBeFocused();
+  await page.getByRole("button", { name: "Close request details" }).click();
+  await expect(page.locator(".inspector")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", {
+      name: "Inspect request fixture-35",
+      exact: true,
+    }),
+  ).toBeFocused();
   await page.getByRole("button", { name: "All networks", exact: true }).click();
   await page
     .getByRole("textbox", { name: "Find a method" })
@@ -174,6 +191,18 @@ test("mobile console fits and live mode never silently becomes an example", asyn
       () => document.documentElement.scrollWidth <= window.innerWidth,
     ),
   ).toBe(true);
+  const requestTable = page.getByRole("table", { name: "Recorded requests" });
+  expect(
+    await requestTable.evaluate(
+      (table) => table.scrollWidth <= table.clientWidth,
+    ),
+  ).toBe(true);
+  await page
+    .getByRole("button", { name: "Inspect request fixture-35", exact: true })
+    .click();
+  await expect(page.locator(".inspector")).toBeInViewport();
+  await page.getByRole("button", { name: "Close request details" }).click();
+  await expect(page.locator(".inspector")).toHaveCount(0);
   await page.screenshot({
     path: "artifacts/recorder-mobile.png",
     fullPage: true,

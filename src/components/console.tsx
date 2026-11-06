@@ -1,16 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import {
   Activity,
   ArrowDownToLine,
   ArrowUpRight,
-  Box,
   Check,
   ChevronRight,
   CircleHelp,
   Cpu,
-  Database,
   Fingerprint,
   HardDrive,
   Layers,
@@ -21,8 +20,10 @@ import {
   Search,
   ShieldCheck,
   Upload,
-  Zap,
+  X,
 } from "lucide-react";
+import { Brand } from "./brand";
+import { ParticleOrb } from "./particle-orb";
 import { summarize, percentile } from "@/lib/analysis";
 import type { Observation, Recording } from "@/lib/types";
 import { isRecording } from "@/lib/recording-schema";
@@ -59,6 +60,8 @@ export function Console({ hosted = false }: { hosted?: boolean }) {
   } | null>(null);
   const [refresh, setRefresh] = useState(0);
   const fileInput = useRef<HTMLInputElement>(null);
+  const inspector = useRef<HTMLElement>(null);
+  const inspectTrigger = useRef<HTMLButtonElement | null>(null);
   const pausedRef = useRef(paused);
   useEffect(() => {
     pausedRef.current = paused;
@@ -72,6 +75,24 @@ export function Console({ hosted = false }: { hosted?: boolean }) {
     setError("");
     setNotice("");
     setPaused(false);
+  }
+
+  function inspectRequest(id: string) {
+    inspectTrigger.current = document.activeElement as HTMLButtonElement;
+    setSelected(id);
+  }
+
+  useEffect(() => {
+    if (selected && inspector.current) {
+      inspector.current.focus({ preventScroll: true });
+      if (window.matchMedia("(max-width: 1000px)").matches)
+        inspector.current.scrollIntoView({ block: "start" });
+    }
+  }, [selected]);
+
+  function closeInspector() {
+    setSelected(null);
+    inspectTrigger.current?.focus();
   }
 
   useEffect(() => {
@@ -123,7 +144,7 @@ export function Console({ hosted = false }: { hosted?: boolean }) {
       (network === "all" || o.network === network) &&
       o.method.toLowerCase().includes(query.toLowerCase()),
   );
-  const current = rows.find((o) => o.id === selected) ?? rows.at(-1);
+  const current = rows.find((o) => o.id === selected);
   const groups = summarize(rows);
   const elevated = groups.filter((g) => g.elevated);
   const errors = rows.filter((o) => o.outcome !== "ok").length;
@@ -202,23 +223,11 @@ export function Console({ hosted = false }: { hosted?: boolean }) {
 
   return (
     <div className="app-shell">
-      <aside className="sidebar">
-        <a className="brand" href="/" aria-label="AMPERE home">
-          <span className="brand-mark">
-            <Zap size={24} fill="currentColor" />
-          </span>
-          ampere<span className="brand-period">.</span>
-        </a>
-        <div className="workspace">
-          <span className="workspace-icon">
-            <Box size={19} />
-          </span>
-          <div>
-            {hosted ? "Shared recorder" : "Local workspace"}<small>Infrastructure observability</small>
-          </div>
-          <span className="workspace-light" />
-        </div>
-        <div className="nav-label">Workspace</div>
+      <a className="skip-link" href="#console">
+        Skip to console
+      </a>
+      <header className="app-header">
+        <Brand />
         <nav aria-label="Workspace">
           {[
             { name: "Recorder", icon: Activity },
@@ -233,87 +242,24 @@ export function Console({ hosted = false }: { hosted?: boolean }) {
             >
               <Icon size={19} />
               {name}
-              {name === "Recorder" && (
-                <span className="nav-count">
-                  {recording?.observations.length ?? 0}
-                </span>
-              )}
             </button>
           ))}
         </nav>
-        <div className="sidebar-networks">
-          <div className="nav-label">Connected networks</div>
-          {(["ethereum", "arkiv"] as const).map((name) => {
-            const node = recording?.nodes.find((n) => n.network === name);
-            return (
-              <div className="sidebar-node" key={name}>
-                <span className={`network-symbol ${name}`}>
-                  <Database size={15} />
-                </span>
-                <div>
-                  {names[name]}
-                  <small>
-                    {name === "ethereum"
-                      ? "Frame transaction devnet"
-                      : "Local development node"}
-                  </small>
-                </div>
-                <span
-                  className={`dot ${node?.connected && (mode === "fixture" || now - Date.parse(node.checkedAt) <= 30000) ? "green" : "amber"}`}
-                />
-              </div>
-            );
-          })}
-        </div>
-        <div className="sidebar-bottom">
-          <Fingerprint size={28} />
-          <strong>Keep the evidence.</strong>
-          <p>
-            Every request leaves a trace.
-            <br />
-            Make yours inspectable.
-          </p>
-          <span>
-            AMPERE <span className="version">v0.1</span>
-          </span>
-        </div>
-      </aside>
+        <Link className="how-it-works-link" href="/how-it-works">
+          How it works <ArrowUpRight size={16} />
+        </Link>
+      </header>
 
       <div className="main-shell">
-        <header className="topbar">
-          <div className="breadcrumb">
-            Workspace <ChevronRight size={14} />
-            <strong>{tab}</strong>
-          </div>
-          <div className="topbar-right">
-            <span className="local-badge">
-              <span className="dot green" />
-              {hosted ? "Signed snapshots" : "Local-first"}
-            </span>
-            <a
-              href="https://ethglobal.com/events/mumbai/prizes"
-              target="_blank"
-              rel="noreferrer"
-              aria-label="Open track requirements"
-            >
-              <CircleHelp size={18} />
-            </a>
-            <span className="avatar">A</span>
-          </div>
-        </header>
-        <main>
+        <main id="console">
           <div className="page-heading">
             <div>
-              <div className="heading-caption">
-                <Radio size={15} />
-                Infrastructure flight recorder
-              </div>
               <h1>
                 {tab === "Recorder"
-                  ? "Trace the request. Inspect the cost."
+                  ? "Request recorder"
                   : tab === "Nodes"
-                    ? "Node state / resource counters"
-                    : "Signed records / integrity checks"}
+                    ? "Nodes"
+                    : "Reports"}
               </h1>
               <p>
                 {tab === "Recorder"
@@ -323,14 +269,17 @@ export function Console({ hosted = false }: { hosted?: boolean }) {
                     : "Export a signed recording and independently check its integrity."}
               </p>
             </div>
-            <button
-              className="primary-button"
-              disabled={exporting || !recording?.observations.length}
-              onClick={exportReport}
-            >
-              <ArrowDownToLine size={17} />
-              {exporting ? "Signing…" : "Export report"}
-            </button>
+            <ParticleOrb className="console-orb" />
+            {tab !== "Reports" && (
+              <button
+                className="primary-button"
+                disabled={exporting || !recording?.observations.length}
+                onClick={exportReport}
+              >
+                <ArrowDownToLine size={17} />
+                {exporting ? "Signing…" : "Export report"}
+              </button>
+            )}
           </div>
 
           <div
@@ -343,20 +292,30 @@ export function Console({ hosted = false }: { hosted?: boolean }) {
               <strong>
                 {mode === "fixture"
                   ? "Illustrative recording"
-                  : stale
-                    ? "Saved live recording"
-                    : !latest
-                      ? "Waiting for measurements"
-                      : paused
-                        ? "View paused"
-                        : "Live measurements"}
+                  : !recording
+                    ? error
+                      ? "Recording unavailable"
+                      : "Loading recording…"
+                    : paused
+                      ? "View paused"
+                      : stale
+                        ? "Saved live recording"
+                        : !latest
+                          ? "Waiting for measurements"
+                          : "Live measurements"}
               </strong>
               <span>
                 {mode === "fixture"
                   ? "Synthetic examples. No network claims."
-                  : latest
-                    ? `Last request ${time(latest)}${stale ? " — collector is not updating" : ""}`
-                    : "Run npm run collect to start recording."}
+                  : !recording
+                    ? error
+                      ? "Refresh to try again."
+                      : "Fetching measurements."
+                    : latest
+                      ? `Last request ${time(latest)}${stale ? " — collector is not updating" : ""}`
+                      : hosted
+                        ? "Waiting for a published snapshot."
+                        : "Run npm run collect to start recording."}
               </span>
             </div>
             <div className="mode-switch" aria-label="Recording source">
@@ -446,10 +405,12 @@ export function Console({ hosted = false }: { hosted?: boolean }) {
                 <Timeline
                   rows={rows}
                   selected={current?.id}
-                  onSelect={setSelected}
+                  onSelect={inspectRequest}
                 />
               </section>
-              <div className="recorder-grid">
+              <div
+                className={`recorder-grid ${current ? "has-selection" : ""}`}
+              >
                 <section className="requests-panel">
                   <div className="panel-heading">
                     <h2>
@@ -464,6 +425,8 @@ export function Console({ hosted = false }: { hosted?: boolean }) {
                         aria-label={
                           paused ? "Resume view updates" : "Pause view updates"
                         }
+                        disabled={mode === "fixture" || !recording}
+                        aria-pressed={paused}
                         onClick={() => setPaused(!paused)}
                       >
                         {paused ? <Play size={16} /> : <Pause size={16} />}
@@ -502,7 +465,7 @@ export function Console({ hosted = false }: { hosted?: boolean }) {
                     </label>
                   </div>
                   <div className="table-scroll">
-                    <table>
+                    <table aria-label="Recorded requests">
                       <thead>
                         <tr>
                           <th>Time</th>
@@ -529,7 +492,10 @@ export function Console({ hosted = false }: { hosted?: boolean }) {
                                 {time(row.recordedAt)}
                               </td>
                               <td>
-                                <span className="method-name">
+                                <span
+                                  className="method-name"
+                                  title={row.method}
+                                >
                                   {row.method}
                                 </span>
                                 <small className="network-label">
@@ -537,6 +503,10 @@ export function Console({ hosted = false }: { hosted?: boolean }) {
                                     className={`dot ${row.network === "arkiv" ? "teal" : "blue"}`}
                                   />
                                   {names[row.network]}
+                                  <span className="request-time">
+                                    {" "}
+                                    · {time(row.recordedAt)}
+                                  </span>
                                 </small>
                               </td>
                               <td className="mono">
@@ -560,7 +530,8 @@ export function Console({ hosted = false }: { hosted?: boolean }) {
                                 <button
                                   className="inspect-button"
                                   aria-label={`Inspect request ${row.id}`}
-                                  onClick={() => setSelected(row.id)}
+                                  aria-pressed={current?.id === row.id}
+                                  onClick={() => inspectRequest(row.id)}
                                 >
                                   <ChevronRight size={16} />
                                 </button>
@@ -572,12 +543,43 @@ export function Console({ hosted = false }: { hosted?: boolean }) {
                     {!rows.length && (
                       <div className="empty">
                         <Radio size={28} />
-                        <h3>No requests in this view</h3>
+                        <h3>
+                          {!recording
+                            ? error
+                              ? "Recording unavailable"
+                              : "Loading requests…"
+                            : "No requests in this view"}
+                        </h3>
                         <p>
-                          {query
-                            ? "Try another method or network."
-                            : "Run npm run collect, or open the Example recording to explore the console."}
+                          {!recording
+                            ? error
+                              ? "Refresh the recording to try again."
+                              : "Your recording will appear here."
+                            : query || network !== "all"
+                              ? "Try another method or network."
+                              : hosted
+                                ? "Waiting for a published snapshot. Open Example to explore the console."
+                                : "Run npm run collect, or open the Example recording to explore the console."}
                         </p>
+                        {recording && (query || network !== "all") && (
+                          <button
+                            className="secondary-button empty-action"
+                            onClick={() => {
+                              setQuery("");
+                              setNetwork("all");
+                            }}
+                          >
+                            Clear filters
+                          </button>
+                        )}
+                        {error && (
+                          <button
+                            className="secondary-button empty-action"
+                            onClick={() => setRefresh(refresh + 1)}
+                          >
+                            Retry recording
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -593,100 +595,113 @@ export function Console({ hosted = false }: { hosted?: boolean }) {
                     </span>
                   </div>
                 </section>
-                <aside className="inspector">
-                  <div className="inspector-title">
-                    <Fingerprint size={19} />
-                    <h2>Evidence inspector</h2>
-                  </div>
-                  {current ? (
-                    <>
-                      <div
-                        className={`inspector-status ${current.outcome !== "ok" ? "attention" : ""}`}
+                {current && (
+                  <aside
+                    className="inspector"
+                    ref={inspector}
+                    tabIndex={-1}
+                    aria-labelledby="inspector-heading"
+                  >
+                    <div className="inspector-title">
+                      <Fingerprint size={19} />
+                      <h2 id="inspector-heading">Request details</h2>
+                      <button
+                        className="inspect-button close-inspector"
+                        aria-label="Close request details"
+                        onClick={closeInspector}
                       >
-                        {current.outcome === "ok" ? (
-                          <ShieldCheck size={21} />
-                        ) : (
-                          <Activity size={21} />
-                        )}
-                        <div>
-                          {current.outcome === "ok"
-                            ? "Response received"
-                            : "Request did not succeed"}
-                          <small>
-                            {current.source === "live"
-                              ? "Recorded from a real RPC exchange"
-                              : "Synthetic example observation"}
-                          </small>
-                        </div>
-                      </div>
-                      <h3 className="inspector-method">{current.method}</h3>
-                      <dl>
-                        <dt>Network</dt>
-                        <dd>{names[current.network]}</dd>
-                        <dt>Wall-clock latency</dt>
-                        <dd className="mono">{formatMs(current.durationMs)}</dd>
-                        <dt>Response size</dt>
-                        <dd className="mono">
-                          {current.responseBytes.toLocaleString()} bytes
-                        </dd>
-                        <dt>Outcome</dt>
-                        <dd>{current.outcome}</dd>
-                        {current.rpcCode !== undefined && (
-                          <>
-                            <dt>RPC error code</dt>
-                            <dd className="mono">{current.rpcCode}</dd>
-                          </>
-                        )}
-                        {current.workloadId && (
-                          <>
-                            <dt>Private workload</dt>
-                            <dd className="mono">
-                              {current.workloadId.slice(0, 8)}
-                            </dd>
-                          </>
-                        )}
-                        {current.blockNumber && (
-                          <>
-                            <dt>Query block</dt>
-                            <dd>{Number(current.blockNumber)}</dd>
-                          </>
-                        )}
-                        <dt>Recorded at</dt>
-                        <dd>{time(current.recordedAt)}</dd>
-                      </dl>
-                      <div className="inspector-note">
-                        <CircleHelp size={16} />
-                        <p>
-                          {current.summary ||
-                            "Latency includes network travel and node processing. It does not establish server CPU cost or an admission-policy violation."}
-                        </p>
-                      </div>
-                      <div className="observation-id">
-                        <span>Observation ID</span>
-                        <code>{current.id}</code>
-                      </div>
-                      <div className="privacy-note">
-                        <ShieldCheck size={14} />
-                        Request parameters are not stored.
-                      </div>
-                    </>
-                  ) : (
-                    <div className="empty">
-                      <p>Select a recorded request to inspect its evidence.</p>
+                        <X size={17} />
+                      </button>
                     </div>
-                  )}
-                </aside>
+                    <div
+                      className={`inspector-status ${current.outcome !== "ok" ? "attention" : ""}`}
+                    >
+                      {current.outcome === "ok" ? (
+                        <ShieldCheck size={21} />
+                      ) : (
+                        <Activity size={21} />
+                      )}
+                      <div>
+                        {current.outcome === "ok"
+                          ? "Response received"
+                          : "Request did not succeed"}
+                        <small>
+                          {current.source === "live"
+                            ? "Recorded from a real RPC exchange"
+                            : "Synthetic example observation"}
+                        </small>
+                      </div>
+                    </div>
+                    <h3 className="inspector-method">{current.method}</h3>
+                    <dl>
+                      <dt>Network</dt>
+                      <dd>{names[current.network]}</dd>
+                      <dt>Wall-clock latency</dt>
+                      <dd className="mono">{formatMs(current.durationMs)}</dd>
+                      <dt>Response size</dt>
+                      <dd className="mono">
+                        {current.responseBytes.toLocaleString()} bytes
+                      </dd>
+                      <dt>Outcome</dt>
+                      <dd>{current.outcome}</dd>
+                      {current.rpcCode !== undefined && (
+                        <>
+                          <dt>RPC error code</dt>
+                          <dd className="mono">{current.rpcCode}</dd>
+                        </>
+                      )}
+                      {current.workloadId && (
+                        <>
+                          <dt>Private workload</dt>
+                          <dd className="mono">
+                            {current.workloadId.slice(0, 8)}
+                          </dd>
+                        </>
+                      )}
+                      {current.blockNumber && (
+                        <>
+                          <dt>Query block</dt>
+                          <dd>{Number(current.blockNumber)}</dd>
+                        </>
+                      )}
+                      <dt>Recorded at</dt>
+                      <dd>{time(current.recordedAt)}</dd>
+                    </dl>
+                    <div className="inspector-note">
+                      <CircleHelp size={16} />
+                      <p>
+                        {current.summary ||
+                          "Latency includes network travel and node processing. It does not establish server CPU cost or an admission-policy violation."}
+                      </p>
+                    </div>
+                    <div className="observation-id">
+                      <span>Observation ID</span>
+                      <code>{current.id}</code>
+                    </div>
+                    <div className="privacy-note">
+                      <ShieldCheck size={14} />
+                      Request parameters are not stored.
+                    </div>
+                  </aside>
+                )}
               </div>
-              <section className="comparison-panel">
-                <div className="panel-heading">
+              <details className="comparison-panel">
+                <summary className="panel-heading comparison-toggle">
                   <div>
-                    <h2>Baseline comparison</h2>
-                    <span>
-                      First 5 vs. latest 5 successful requests per method. At
-                      least 10 required.
+                    <span className="comparison-label">
+                      Baseline comparison
                     </span>
                   </div>
-                </div>
+                  <span className={elevated.length ? "attention" : "muted"}>
+                    {elevated.length} elevated{" "}
+                    {elevated.length === 1 ? "method" : "methods"}
+                  </span>
+                  <ChevronRight size={16} />
+                </summary>
+                <p className="panel-footnote">
+                  First 5 vs. latest 5 successful requests per method. At least
+                  10 required.
+                </p>
                 <div className="comparison-list">
                   {groups.map((g) => (
                     <div key={g.key}>
@@ -715,7 +730,12 @@ export function Console({ hosted = false }: { hosted?: boolean }) {
                     </div>
                   ))}
                 </div>
-              </section>
+                {!groups.length && (
+                  <p className="panel-footnote">
+                    Record requests to compare method latency.
+                  </p>
+                )}
+              </details>
             </>
           )}
 
@@ -860,7 +880,7 @@ export function Console({ hosted = false }: { hosted?: boolean }) {
                   disabled={exporting || !recording?.observations.length}
                 >
                   <ArrowDownToLine size={17} />
-                  Download signed report
+                  {exporting ? "Signing…" : "Download signed report"}
                 </button>
                 <div className="report-facts">
                   <span>
@@ -880,7 +900,8 @@ export function Console({ hosted = false }: { hosted?: boolean }) {
                 <h2>Verify a report</h2>
                 <p>
                   Check that its signed contents haven’t changed. Verification
-                  runs on {hosted ? "the hosted" : "this local"} AMPERE server; the file is not retained.
+                  runs on {hosted ? "the hosted" : "this local"} AMPERE server;
+                  the file is not retained.
                 </p>
                 <input
                   className="sr-only"
@@ -935,7 +956,10 @@ export function Console({ hosted = false }: { hosted?: boolean }) {
               <ShieldCheck size={14} />
               Evidence before conclusions.
             </span>
-            <span>{hosted ? "Hosted snapshots" : "Local storage"} · No analytics · MIT licensed</span>
+            <span>
+              {hosted ? "Hosted snapshots" : "Local storage"} · No analytics ·
+              MIT licensed
+            </span>
           </footer>
         </main>
       </div>
