@@ -12,10 +12,12 @@
     "test:e2e": "playwright test",
     "format": "prettier --write src scripts tests docs arkiv README.md package.json tsconfig.json playwright.config.ts next.config.ts compose.yaml",
     "collect": "tsx --env-file-if-exists=.env.local scripts/collect.ts",
+    "collect:watch": "tsx --env-file-if-exists=.env.local scripts/collect.ts --watch",
     "ethereum:send": "tsx --env-file-if-exists=.env.local scripts/send-frame.ts",
     "ethereum:inspect": "tsx --env-file-if-exists=.env.local scripts/inspect-frame.ts",
     "arkiv:seed": "tsx --env-file-if-exists=.env.local scripts/seed-arkiv.ts",
     "arkiv:benchmark": "tsx --env-file-if-exists=.env.local scripts/benchmark-arkiv.ts",
+    "arkiv:benchmark:fixed": "tsx --env-file-if-exists=.env.local scripts/benchmark-arkiv.ts --fixed-block",
     "verify": "tsx scripts/verify.ts"
   },
   "engines": {
