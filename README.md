@@ -40,31 +40,9 @@ As the Ethereum ecosystem evolves, infrastructure complexity compounds at two cr
 
 ### The Observability Divide
 
-```text
-Traditional Public Explorers (External Perspective)
-┌───────────────────────┐         RPC Pipeline          ┌───────────────────────┐
-│ External Block Tracker│ ─── [Opaque JSON-RPC] ───► │ Node / Bundler Core   │
-│   (Mined State Only)  │ ◄── [Opaque Rejection] ─── │ (Internal State Masked│
-└───────────────────────┘                               └───────────────────────┘
-                                      ▲
-                                      │ Diagnostic Blind Spot:
-                                      │ • Container cgroup saturation
-                                      │ • Silent precompile failures
-                                      │ • Unlogged ERC-7562 opcode drops
-                                      │ • Predictive disk exhaustion
-
-AMPERE In-Situ Diagnostic Pipeline (Internal Perspective)
-┌───────────────────────────────────────────────────────────────────────────────┐
-│ AMPERE Daemon (Sidecar / In-Situ Engine)                                      │
-│  ├─ Linux cgroups & Host VFS Monitoring (Disk Burn-Rate Linear Regression)    │
-│  ├─ Granular RPC Method Latency Distributions (p50 / p95 Profiling)           │
-│  ├─ Zero-Knowledge Private Query Benchmarks (Loopback-Enforced Opaque IDs)    │
-│  ├─ Dual-Assertion Precompile State Verification (Receipt Events + Read-Back) │
-│  ├─ Multi-Frame Wire Serializer & Pre-Flight Hash Locking                     │
-│  ├─ Skandha Sidecar Admission Tracing (Discrete ERC-7562 Rule Checks)         │
-│  └─ Deterministic Canonicalization (RFC-8785) & Ed25519 Signed Flight Records │
-└───────────────────────────────────────────────────────────────────────────────┘
-```
+<p align="center">
+  <img src="docs/assets/observability-divide.png" alt="The Observability Divide — External Black-Box Monitoring vs In-Situ Node Diagnostics" width="100%" />
+</p>
 
 Public block explorers only observe the blockchain from the outside after blocks are finalized. They treat transaction drops, bundler rejections, host container saturation, and RPC degradation as opaque black boxes. 
 
