@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Activity,
@@ -976,8 +976,56 @@ function Timeline({
   selected?: string;
   onSelect: (id: string) => void;
 }) {
+  const tooltipId = useId();
+  const [preview, setPreview] = useState<{
+    id: string;
+    left: number;
+    keyboard: boolean;
+  } | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const visible = rows.slice(-90);
   const max = Math.max(1, ...visible.map((r) => r.durationMs));
+  const previewRow = visible.find((row) => row.id === preview?.id);
+  const showingPreview = previewOpen && !!previewRow;
+
+  useEffect(() => {
+    function dismissPreview(event: KeyboardEvent) {
+      if (event.key === "Escape") setPreviewOpen(false);
+    }
+    function resetPreview() {
+      setPreviewOpen(false);
+      setPreview(null);
+    }
+    document.addEventListener("keydown", dismissPreview);
+    window.addEventListener("resize", resetPreview);
+    return () => {
+      document.removeEventListener("keydown", dismissPreview);
+      window.removeEventListener("resize", resetPreview);
+    };
+  }, []);
+
+  function showPreview(
+    button: HTMLButtonElement,
+    id: string,
+    keyboard = false,
+  ) {
+    const bounds = button.getBoundingClientRect();
+    const plot = button.parentElement!.getBoundingClientRect();
+    const tooltipWidth = Math.min(240, plot.width);
+    setPreview({
+      id,
+      left: Math.max(
+        0,
+        Math.min(
+          bounds.left - plot.left + bounds.width / 2 - tooltipWidth / 2,
+          plot.width - tooltipWidth,
+        ),
+      ),
+      keyboard,
+    });
+    setPreviewOpen(true);
+  }
+
   return (
     <div className="timeline">
       <div className="chart-scale">
@@ -985,26 +1033,86 @@ function Timeline({
         <span>{(max / 2).toFixed(0)} ms</span>
         <span>0 ms</span>
       </div>
-      <div className="chart-body">
+      <div
+        className="chart-body"
+        onPointerLeave={(event) => {
+          if (!event.currentTarget.contains(document.activeElement))
+            setPreviewOpen(false);
+        }}
+        onBlur={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget))
+            setPreviewOpen(false);
+        }}
+      >
         <div className="chart-grid">
           <i />
           <i />
           <i />
         </div>
-        <div className="bars">
+        <div className="bars" data-preview={showingPreview}>
           {visible.map((row) => (
             <button
               key={row.id}
-              title={`${row.method}: ${formatMs(row.durationMs)}`}
               aria-label={`Select ${row.method}, ${formatMs(row.durationMs)}`}
               aria-pressed={selected === row.id}
-              className={`bar ${row.outcome !== "ok" ? "bar-error" : `bar-${row.network}`}`}
-              style={{
-                height: `${Math.max(3, (row.durationMs / max) * 100)}%`,
+              aria-describedby={
+                showingPreview && preview?.id === row.id ? tooltipId : undefined
+              }
+              className="bar"
+              data-active={showingPreview && preview?.id === row.id}
+              onPointerEnter={(event) => {
+                if (event.pointerType !== "touch")
+                  showPreview(event.currentTarget, row.id);
               }}
+              onFocus={(event) =>
+                showPreview(
+                  event.currentTarget,
+                  row.id,
+                  event.currentTarget.matches(":focus-visible"),
+                )
+              }
               onClick={() => onSelect(row.id)}
-            />
+            >
+              <span
+                className={`bar-fill ${row.outcome !== "ok" ? "bar-error" : `bar-${row.network}`}`}
+                style={{
+                  height: `${Math.max(3, (row.durationMs / max) * 100)}%`,
+                }}
+              />
+            </button>
           ))}
+        </div>
+        <div
+          className="chart-tooltip-position"
+          data-keyboard={!preview || preview.keyboard}
+          style={{ transform: `translateX(${preview?.left ?? 0}px)` }}
+        >
+          <div
+            id={tooltipId}
+            role="tooltip"
+            className="chart-tooltip"
+            data-open={showingPreview}
+            aria-hidden={!showingPreview}
+          >
+            {previewRow && (
+              <>
+                <div className="chart-tooltip-meta">
+                  <span>
+                    <i className={`legend-${previewRow.network}`} />
+                    {names[previewRow.network]}
+                  </span>
+                  <span>{time(previewRow.recordedAt)}</span>
+                </div>
+                <strong>{previewRow.method}</strong>
+                <div className="chart-tooltip-value">
+                  <span>{formatMs(previewRow.durationMs)}</span>
+                  <span>
+                    {previewRow.outcome === "ok" ? "Success" : "Failed"}
+                  </span>
+                </div>
+              </>
+            )}
+          </div>
         </div>
         <div className="chart-times">
           <span>

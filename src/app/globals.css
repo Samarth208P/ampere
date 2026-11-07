@@ -33,6 +33,7 @@
   --line: rgb(255 255 255 / 10%);
   --surface: var(--color-liquid-kelp);
   --background: var(--color-liquid-abyss);
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
 }
 * {
   box-sizing: border-box;
@@ -465,27 +466,154 @@ h1 {
 }
 .bars {
   display: flex;
-  align-items: flex-end;
-  gap: 5px;
   height: calc(100% - 24px);
   position: relative;
 }
 .bar {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
   flex: 1;
   min-width: 0;
-  max-width: 36px;
-  border-radius: 2px 2px 0 0;
-  padding: 0;
+  max-width: 41px;
+  height: 100%;
+  padding: 0 2.5px;
+  background: transparent;
+  border-radius: 4px;
+  isolation: isolate;
+}
+.bar::before {
+  content: "";
+  position: absolute;
+  inset: 0 1px;
+  z-index: -1;
+  border-radius: 4px 4px 0 0;
+  background: linear-gradient(rgb(203 255 252 / 3%), rgb(203 255 252 / 12%));
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+.bar-fill {
+  display: block;
+  position: relative;
+  width: 100%;
+  border-radius: 3px 3px 0 0;
+  transition: opacity 160ms ease;
+}
+.bar-fill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: #edfffe;
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+.bars[data-preview="true"]
+  .bar:not([data-active="true"]):not([aria-pressed="true"])
+  .bar-fill {
+  opacity: 0.5;
+}
+.bar[aria-pressed="true"] .bar-fill {
+  outline: 1px solid rgb(237 255 254 / 75%);
+  outline-offset: 2px;
+}
+.bar[aria-pressed="true"] .bar-fill::after {
+  opacity: 0.18;
+}
+.bar:focus-visible {
+  outline-offset: 1px;
+}
+.bar:focus-visible::before {
   opacity: 1;
 }
-.bar:hover,
-.bar[aria-pressed="true"] {
-  opacity: 1;
-  outline: 1px solid #edfffe;
-  outline-offset: 3px;
+.bar:focus-visible .bar-fill::after {
+  opacity: 0.28;
+}
+@media (hover: hover) and (pointer: fine) {
+  .bar[data-active="true"]::before {
+    opacity: 1;
+  }
+  .bar[data-active="true"] .bar-fill::after {
+    opacity: 0.28;
+  }
 }
 .bar-error {
   border-top: 2px solid #fff;
+}
+.chart-tooltip-position {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 0;
+  z-index: 5;
+  width: min(240px, 100%);
+  pointer-events: none;
+  transition: transform 160ms var(--ease-out);
+}
+.chart-tooltip {
+  padding: 14px 16px;
+  border: 1px solid rgb(203 255 252 / 20%);
+  border-radius: 10px;
+  background: var(--color-liquid-kelp);
+  box-shadow: 0 8px 28px rgb(0 0 0 / 24%);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(4px);
+  transition:
+    opacity 125ms ease,
+    transform 160ms var(--ease-out),
+    visibility 125ms;
+}
+.chart-tooltip[data-open="true"] {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+.chart-tooltip::after {
+  content: "";
+  position: absolute;
+  inset: 100% 0 auto;
+  height: 10px;
+}
+.chart-tooltip-meta,
+.chart-tooltip-meta > span:first-child,
+.chart-tooltip-value {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.chart-tooltip-meta {
+  color: var(--muted);
+  font-size: 10px;
+}
+.chart-tooltip-meta i {
+  width: 6px;
+  height: 6px;
+  border-radius: 2px;
+}
+.chart-tooltip strong {
+  display: block;
+  margin-top: 10px;
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 400;
+}
+.chart-tooltip-value {
+  margin-top: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.chart-tooltip-value > span:first-child {
+  font-size: 20px;
+}
+.chart-tooltip-value > span:last-child {
+  color: var(--muted);
+  font-size: 10px;
+}
+.chart-tooltip-position[data-keyboard="true"],
+.chart-tooltip-position[data-keyboard="true"] .chart-tooltip {
+  transition: none;
 }
 .chart-times {
   display: flex;
@@ -1728,8 +1856,8 @@ dd {
   .chart-times {
     font-size: 9px;
   }
-  .bars {
-    gap: 3px;
+  .bar {
+    padding-inline: 1.5px;
   }
   .recorder-grid,
   .recorder-grid.has-selection {
