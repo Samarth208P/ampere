@@ -1,8 +1,4 @@
 <p align="center">
-  <img src="docs/assets/illustration-banner.jpg" alt="AMPERE — Infrastructure Flight Recorder Banner" width="100%" />
-</p>
-
-<p align="center">
   <img src="docs/assets/logo-512.png" alt="AMPERE Project Mark" width="140" />
 </p>
 
@@ -77,10 +73,6 @@ AMPERE bridges this divide by deploying directly alongside node instances and bu
 ---
 
 ## System Architecture
-
-<p align="center">
-  <img src="docs/assets/architecture-diagram.png" alt="AMPERE Architecture Blueprint" width="100%" />
-</p>
 
 AMPERE operates as a zero-hosted-database diagnostic engine comprising a local daemon collector, an isolated CLI benchmark harness, and a local Next.js 15 (App Router, React 19) diagnostic console styled with Tailwind CSS. It supports optional zero-trust serverless deployment on Netlify.
 
