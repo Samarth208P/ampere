@@ -40,9 +40,41 @@ As the Ethereum ecosystem evolves, infrastructure complexity compounds at two cr
 
 ### The Observability Divide
 
-<p align="center">
-  <img src="docs/assets/observability-divide.png" alt="The Observability Divide — External Black-Box Monitoring vs In-Situ Node Diagnostics" width="100%" />
-</p>
+```mermaid
+flowchart TD
+    subgraph Traditional["Traditional Public Explorers (External Black-Box Perspective)"]
+        direction LR
+        Tracker["External Block Tracker<br/><i>(Mined State Only)</i>"]
+        
+        subgraph BlindZone["Unobservable RPC Transit & Diagnostic Blind Spot"]
+            BlindSpot["⚠️ <b>DIAGNOSTIC BLIND SPOT</b><br/>• Container cgroup saturation<br/>• Silent precompile failures<br/>• Unlogged ERC-7562 opcode drops<br/>• Predictive disk exhaustion"]
+        end
+
+        NodeCore["Node / Bundler Core<br/><i>(Internal State Masked)</i>"]
+
+        Tracker <-->|Opaque JSON-RPC & Rejections| BlindZone
+        BlindZone <-->|Masked Execution Boundary| NodeCore
+    end
+
+    subgraph Ampere["AMPERE In-Situ Diagnostic Pipeline (Internal Perspective — In-Situ Telemetry)"]
+        direction TB
+        subgraph Daemon["AMPERE Daemon (Sidecar / In-Situ Engine)"]
+            direction TB
+            Badge["🛡️ <b>Engine Profile:</b> Low-Overhead • Loopback-Isolated • Tamper-Evident Cryptographic Sealing"]
+            F1["Linux cgroups & Host VFS Monitoring <i>(Disk Burn-Rate Linear Regression)</i>"]
+            F2["Granular RPC Method Latency Distributions <i>(p50 / p95 Profiling)</i>"]
+            F3["Zero-Knowledge Private Query Benchmarks <i>(Loopback-Enforced Opaque IDs)</i>"]
+            F4["Dual-Assertion Precompile State Verification <i>(Receipt Events + Read-Back)</i>"]
+            F5["Multi-Frame Wire Serializer & Pre-Flight Hash Locking <i>(EIP-8141 Assembly)</i>"]
+            F6["Skandha Sidecar Admission Tracing <i>(Discrete ERC-7562 Rule Checks)</i>"]
+            F7["Deterministic Canonicalization (RFC-8785) & Ed25519 Signed Flight Records"]
+            
+            Badge --- F1 --- F2 --- F3 --- F4 --- F5 --- F6 --- F7
+        end
+    end
+
+    Traditional ==>|Bypasses Opacity via Direct Loopback / In-Situ Telemetry| Ampere
+```
 
 Public block explorers only observe the blockchain from the outside after blocks are finalized. They treat transaction drops, bundler rejections, host container saturation, and RPC degradation as opaque black boxes. 
 
